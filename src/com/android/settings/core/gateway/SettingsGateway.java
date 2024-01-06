@@ -22,6 +22,9 @@ import com.android.settings.MainClear;
 import com.android.settings.MainClearConfirm;
 import com.android.settings.ResetNetwork;
 import com.android.settings.Settings;
+import com.android.settings.Settings.ScreenRefreshRateActivity;
+import org.derpfest.settings.display.refreshrate.ScreenRefreshRateFragment;
+import org.derpfest.settings.display.refreshrate.PerAppRefreshRateFragment;
 import com.android.settings.TestingSettings;
 import com.android.settings.TrustedCredentialsSettings;
 import com.android.settings.accessibility.AccessibilityDetailsSettingsFragment;
@@ -439,6 +442,8 @@ public class SettingsGateway {
             SafetyCenterFragment.class.getName(),
             LiveDisplaySettings.class.getName(),
             WifiTetherClientManager.class.getName(),
+            ScreenRefreshRateFragment.class.getName(),
+            PerAppRefreshRateFragment.class.getName(),
     };
 
     public static final String[] SETTINGS_FOR_RESTRICTED = {
@@ -487,5 +492,6 @@ public class SettingsGateway {
             Settings.MemtagPageActivity.class.getName(),
             Settings.NavigationModeSettingsActivity.class.getName(),
             Settings.ShadeSettingsActivity.class.getName(),
+            Settings.ScreenRefreshRateActivity.class.getName(),
     };
 }
