@@ -6407,6 +6407,8 @@
             <intent-filter>
                 <action android:name="com.google.android.setupwizard.SETUP_WIZARD_FINISHED"/>
             </intent-filter>
+        </receiver>
+
         <!-- App lock -->
         <activity android:name=".security.applock.AppLockCredentialActivity"
             android:exported="false"
