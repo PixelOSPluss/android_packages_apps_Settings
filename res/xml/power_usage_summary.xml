@@ -66,6 +66,12 @@
             android:title="@string/smart_battery_manager_title"
             settings:controller="com.android.settings.fuelgauge.batterytip.BatteryManagerPreferenceController"
             settings:keywords="@string/keywords_battery_adaptive_preferences" />
+
+        <Preference
+            android:key="idle_manager"
+            android:title="@string/idle_manager_title"
+            android:summary="@string/idle_manager_summary"
+            android:fragment="org.lunaris.settings.fragments.miscellaneous.IdleManagerSettings" />
     </com.android.settingslib.widget.UntitledPreferenceCategory>
 
     <com.android.settingslib.widget.UntitledPreferenceCategory

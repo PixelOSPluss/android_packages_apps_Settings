@@ -6179,5 +6179,17 @@
                        android:value="org.derpfest.settings.display.refreshrate.ScreenRefreshRateFragment"/>
         </activity>
 
+        <!-- Idle Manager -->
+        <activity android:name="Settings$IdleManagerActivity"
+            android:label="@string/idle_manager_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data android:name="com.android.settings.FRAGMENT_CLASS"
+                       android:value="org.lunaris.settings.fragments.miscellaneous.IdleManagerSettings" />
+        </activity>
+
     </application>
 </manifest>

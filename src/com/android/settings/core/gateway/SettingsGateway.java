@@ -445,6 +445,7 @@ public class SettingsGateway {
             ScreenRefreshRateFragment.class.getName(),
             PerAppRefreshRateFragment.class.getName(),
             SleepMode.class.getName(),
+            org.lunaris.settings.fragments.miscellaneous.IdleManagerSettings.class.getName(),
     };
 
     public static final String[] SETTINGS_FOR_RESTRICTED = {

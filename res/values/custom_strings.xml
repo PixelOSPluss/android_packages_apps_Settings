@@ -420,4 +420,46 @@
     <string name="night_display_activation_off_twilight">Turn off until sunset</string>
     <string name="night_display_activation_on_custom">Turn on until <xliff:g name="time" example="6 AM">%1$s</xliff:g></string>
     <string name="night_display_activation_off_custom">Turn off until <xliff:g name="time" example="10 PM">%1$s</xliff:g></string>
+
+    <!-- Idle Manager -->
+    <string name="idle_manager_title">Idle Manager</string>
+    <string name="idle_manager_summary">Stop background activity of apps when screen is off</string>
+    <string name="idle_manager_disabled">Disabled</string>
+    <string name="idle_manager_app_count">%d apps</string>
+    <string name="idle_manager_tab_apps">Apps</string>
+    <string name="idle_manager_tab_dashboard">Dashboard</string>
+    <string name="idle_manager_add_apps">Add Apps</string>
+    <string name="idle_manager_clear_all">Clear All</string>
+    <string name="idle_manager_clear_all_confirm">Are you sure you want to clear all configured apps?</string>
+    <string name="idle_manager_configured_apps">Configured Apps</string>
+    <string name="idle_manager_clear_stats_title">Clear Statistics</string>
+    <string name="idle_manager_clear_stats_confirm">Are you sure you want to clear all enforcement statistics?</string>
+    <string name="idle_manager_clear_stats_button">Clear Stats</string>
+    <string name="idle_manager_apps_acted_on">Apps Acted On</string>
+    <string name="idle_manager_total_actions">Total Actions</string>
+    <string name="idle_manager_action_breakdown">Action Breakdown</string>
+    <string name="idle_manager_recent_activity">Recent Activity</string>
+    <string name="idle_manager_refresh_dashboard">Refresh Dashboard</string>
+    <string name="idle_manager_last_killed">Last killed: %s</string>
+    <string name="idle_manager_remove_title">Remove App</string>
+    <string name="idle_manager_remove_confirm">Remove %s from Idle Manager?</string>
+    <string name="idle_manager_critical_system_warning">Critical System App</string>
+    <string name="idle_manager_enforcement_action">Enforcement Action</string>
+    <string name="idle_manager_kill_count_label">Kill Count</string>
+    <string name="idle_manager_last_killed_label">Last Killed</string>
+    <string name="idle_manager_longpress_hint">Tap to edit action, long-press to remove</string>
+    <string name="idle_manager_back_to_apps">Back to Apps</string>
+    <string name="idle_manager_select_action">Select Enforcement Action</string>
+    <string name="hide_system_apps">Hide System Apps</string>
+    <string name="show_system_apps">Show System Apps</string>
+    <string name="search_apps">Search apps…</string>
+    <string name="idle_manager_no_apps_available">No apps available</string>
+    <string name="idle_manager_backup_menu_import">Import Settings</string>
+    <string name="idle_manager_backup_menu_export">Export Settings</string>
+    <string name="idle_manager_backup_export_success">Backup saved successfully</string>
+    <string name="idle_manager_backup_export_failed">Backup export failed</string>
+    <string name="idle_manager_backup_import_success">Settings imported successfully</string>
+    <string name="idle_manager_backup_import_failed">Backup import failed</string>
+    <string name="idle_manager_trigger_sleep_mode_title">Trigger Sleep Mode</string>
+    <string name="idle_manager_trigger_sleep_mode_summary">Automatically enable Sleep Mode when idle manager runs</string>
 </resources>

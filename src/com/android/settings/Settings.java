@@ -661,4 +661,7 @@ public class Settings extends SettingsActivity {
 
     // SleepMode
     public static class SleepModeActivity extends SettingsActivity {}
+
+    // IdleManager
+    public static class IdleManagerActivity extends SettingsActivity {}
 }
