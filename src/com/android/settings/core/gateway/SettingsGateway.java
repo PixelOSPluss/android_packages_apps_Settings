@@ -444,6 +444,7 @@ public class SettingsGateway {
             WifiTetherClientManager.class.getName(),
             ScreenRefreshRateFragment.class.getName(),
             PerAppRefreshRateFragment.class.getName(),
+            SleepMode.class.getName(),
     };
 
     public static final String[] SETTINGS_FOR_RESTRICTED = {
@@ -493,5 +494,6 @@ public class SettingsGateway {
             Settings.NavigationModeSettingsActivity.class.getName(),
             Settings.ShadeSettingsActivity.class.getName(),
             Settings.ScreenRefreshRateActivity.class.getName(),
+            Settings.SleepModeActivity.class.getName(),
     };
 }
