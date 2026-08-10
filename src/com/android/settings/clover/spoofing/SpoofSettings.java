@@ -22,6 +22,6 @@ public class SpoofSettings extends SettingsPreferenceFragment {
 
     @Override
     public int getMetricsCategory() {
-        return MetricsProto.MetricsEvent.CLOVER;
+        return MetricsProto.MetricsEvent.VIEW_UNKNOWN;
     }
 }

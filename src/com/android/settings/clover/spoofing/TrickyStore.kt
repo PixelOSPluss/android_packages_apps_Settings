@@ -235,7 +235,7 @@ class TrickyStore : SettingsPreferenceFragment() {
     private fun toast(msg: String) =
         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
 
-    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.CLOVER
+    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.VIEW_UNKNOWN
 
     companion object {
         private const val KEYBOX_KEY = "spoof_trickystore_keybox"
