@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+
+    <!-- Top Action Bar (X, Title, Checkmark) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/btn_close"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_settings_close"
+            android:contentDescription="@null"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="@string/quick_launch_edit_title"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btn_save"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_settings_enable"
+            android:contentDescription="@null"
+            android:clickable="true"
+            android:focusable="true" />
+    </RelativeLayout>
+
+    <!-- Subtitle / Drag Hint -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/quick_launch_drag_hint"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textSize="14sp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Current Slots Arrangement Area -->
+    <RelativeLayout
+        android:id="@+id/edit_slots_container"
+        android:layout_width=" match_parent"
+        android:layout_height="200dp"
+        android:gravity="center">
+
+        <!-- 5 Slots with Remove (- badge) buttons -->
+        <!-- Center Slot -->
+        <FrameLayout
+            android:id="@+id/edit_slot_center"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/quick_launch_dotted_slot">
+            <ImageView
+                android:id="@+id/edit_slot_center_icon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null" />
+            <ImageView
+                android:id="@+id/edit_slot_center_remove"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="top|end"
+                android:src="@drawable/ic_settings_delete"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+        </FrameLayout>
+
+        <!-- Top Slot -->
+        <FrameLayout
+            android:id="@+id/edit_slot_top"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_above="@id/edit_slot_center"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/quick_launch_dotted_slot">
+            <ImageView
+                android:id="@+id/edit_slot_top_icon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null" />
+            <ImageView
+                android:id="@+id/edit_slot_top_remove"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="top|end"
+                android:src="@drawable/ic_settings_delete"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+        </FrameLayout>
+
+        <!-- Left Slot -->
+        <FrameLayout
+            android:id="@+id/edit_slot_left"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_toStartOf="@id/edit_slot_center"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="32dp"
+            android:background="@drawable/quick_launch_dotted_slot">
+            <ImageView
+                android:id="@+id/edit_slot_left_icon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null" />
+            <ImageView
+                android:id="@+id/edit_slot_left_remove"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="top|end"
+                android:src="@drawable/ic_settings_delete"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+        </FrameLayout>
+
+        <!-- Right Slot -->
+        <FrameLayout
+            android:id="@+id/edit_slot_right"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_toEndOf="@id/edit_slot_center"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="32dp"
+            android:background="@drawable/quick_launch_dotted_slot">
+            <ImageView
+                android:id="@+id/edit_slot_right_icon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null" />
+            <ImageView
+                android:id="@+id/edit_slot_right_remove"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="top|end"
+                android:src="@drawable/ic_settings_delete"
+                android:visibility="gone"
+                android:contentDescription="@null" />
+        </FrameLayout>
+
+    </RelativeLayout>
+
+    <!-- Tab Selection Bar (Functions / Apps) -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tab_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:tabIndicatorColor="?android:attr/colorAccent"
+        app:tabSelectedTextColor="?android:attr/textColorPrimary"
+        app:tabTextColor="?android:attr/textColorSecondary" />
+
+    <!-- Functions / Apps List ViewPager -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/edit_viewpager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

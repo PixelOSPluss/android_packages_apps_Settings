@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 Lunaris-AOSP
+     SPDX-License-Identifier: Apache-2.0
+-->
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:settings="http://schemas.android.com/apk/res-auto"
+    android:title="@string/quick_launch_title">
+
+    <Preference
+        android:key="quick_launch_layout"
+        android:layout="@layout/quick_launch_settings" />
+
+</PreferenceScreen>

@@ -654,4 +654,16 @@
     <string name="hide_screen_capture_status_title">Hide screen capture status</string>
     <string name="hide_screen_capture_status_summary">Hide screen capture and screen record status from all applications. Can be convenient in some cases but may lead to privacy leaks. Need to restart applications for the change to take effect.</string>
 
+    <!-- Quick Launch -->
+    <string name="quick_launch_title">Quick Launch</string>
+    <string name="quick_launch_summary">Access frequently used functions while unlocking your device</string>
+    <string name="quick_launch_tutorial_1">Touch and hold the fingerprint sensor until icons appear. Without lifting your finger, slide it to an icon and then release to launch the corresponding function or app.</string>
+    <string name="quick_launch_tutorial_2">Immediately after unlocking the screen using your fingerprint and before icons appear, quickly slide your finger to the area where the target icon usually appears and release to launch the function or app.</string>
+    <string name="quick_launch_current_menu">Current menu</string>
+    <string name="quick_launch_edit">Edit</string>
+    <string name="quick_launch_edit_title">Edit Quick launch menu</string>
+    <string name="quick_launch_tab_functions">Functions</string>
+    <string name="quick_launch_tab_apps">Apps</string>
+    <string name="quick_launch_drag_hint">Hold and drag to arrange</string>
+
 </resources>
