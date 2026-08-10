@@ -83,6 +83,11 @@ public class QuickLaunchSettings extends SettingsPreferenceFragment {
         }
 
         @Override
+        public void notifyChanged() {
+            super.notifyChanged();
+        }
+
+        @Override
         public void onBindViewHolder(@NonNull PreferenceViewHolder holder) {
             super.onBindViewHolder(holder);
             View view = holder.itemView;
