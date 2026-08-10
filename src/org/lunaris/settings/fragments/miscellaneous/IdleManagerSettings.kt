@@ -66,6 +66,8 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
@@ -89,6 +91,16 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SearchBar
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -604,15 +616,15 @@ private fun IdleManagerRoot(
     }
 
     if (showAddDialog) {
-        AddAppDialog(
+        FullScreenAppSelector(
             allApps = allApps,
             configuredPackages = configuredApps.keys,
             onDismiss = { showAddDialog = false },
             onAppAdded = { app, action ->
                 upsert(app.packageName, action, app)
-            },
-            onAllAppsAdded = { showAddDialog = false }
+            }
         )
+        return
     }
 
     showEditDialog?.let { target ->
@@ -817,6 +829,42 @@ private fun MasterToggleCard(
 }
 
 @Composable
+private fun InfoOnboardingCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "How it works",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Idle Manager automatically suspends background apps to save battery when your screen is off, while preserving important notifications.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
 private fun AppsTab(
     configuredApps: LinkedHashMap<String, IdleAppConfig>,
     onAdd: () -> Unit,
@@ -831,6 +879,8 @@ private fun AppsTab(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
+        Spacer(Modifier.height(12.dp))
+        InfoOnboardingCard()
         Spacer(Modifier.height(12.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1401,12 +1451,11 @@ private fun DetailRow(label: String, value: String, color: Color) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddAppDialog(
+private fun FullScreenAppSelector(
     allApps: List<IdleAppItem>,
     configuredPackages: Set<String>,
     onDismiss: () -> Unit,
-    onAppAdded: (IdleAppItem, IdleAction) -> Unit,
-    onAllAppsAdded: () -> Unit
+    onAppAdded: (IdleAppItem, IdleAction) -> Unit
 ) {
     var search by remember { mutableStateOf("") }
     var showSystem by remember { mutableStateOf(false) }
@@ -1415,47 +1464,29 @@ private fun AddAppDialog(
     var showActionStep by remember { mutableStateOf(false) }
 
     val filtered = allApps.filter { app ->
-        if
-        (configuredPackages.contains(app.packageName))
-        return@filter false
-        if (!showSystem && app.isSystem)
-        return@filter false
-        if (search.isBlank())
-        return@filter true
+        if (configuredPackages.contains(app.packageName)) return@filter false
+        if (!showSystem && app.isSystem) return@filter false
+        if (search.isBlank()) return@filter true
         app.label.contains(search, true) || app.packageName.contains(search, true)
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (showActionStep) {
-                    TextButton(onClick = {
-                        showActionStep = false
-                    }) {
-                        Text(stringResource(R.string.idle_manager_back_to_apps))
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.idle_manager_add_apps)) },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                    Text(
-                        stringResource(R.string.idle_manager_select_action),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                } else {
-                    Text(stringResource(R.string.idle_manager_add_apps))
+                },
+                actions = {
                     Box {
-                        IconButton(onClick = {
-                            showMenu = true
-                        }) {
+                        IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, null)
                         }
-                        DropdownMenu(showMenu, {
-                            showMenu = false
-                        }) {
+                        DropdownMenu(showMenu, { showMenu = false }) {
                             DropdownMenuItem(
-                                text    = {
+                                text = {
                                     Text(
                                         if (showSystem)
                                             stringResource(R.string.hide_system_apps)
@@ -1471,25 +1502,27 @@ private fun AddAppDialog(
                         }
                     }
                 }
-            }
-        },
-        text = {
-            Column(
-                Modifier.fillMaxWidth().height(500.dp)
-            ) {
-                if (!showActionStep) {
-                    OutlinedTextField(
-                        value = search,
-                        onValueChange = { search = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = {
-                            Text(stringResource(R.string.search_apps))
-                        },
-                        singleLine = true
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                        if (filtered.isEmpty()) {
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
+        ) {
+            if (!showActionStep) {
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    label = { Text(stringResource(R.string.search_apps)) },
+                    singleLine = true
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    if (filtered.isEmpty()) {
+                        item {
                             Box(
                                 Modifier.fillMaxWidth().padding(32.dp),
                                 contentAlignment = Alignment.Center
@@ -1502,162 +1535,158 @@ private fun AddAppDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
                             }
-                        } else {
-                            filtered.forEach { app ->
-                                AppSelectRow(
-                                    app      = app,
-                                    selected = selectedApps.any {
-                                        it.packageName == app.packageName
-                                    },
-                                    onClick  = {
-                                        selectedApps =
-                                            if (selectedApps.any {
-                                                it.packageName == app.packageName
-                                            })
-                                                selectedApps.filter {
-                                                    it.packageName != app.packageName
-                                                }.toSet()
-                                            else
-                                                selectedApps + app
-                                    }
-                                )
-                            }
                         }
-                    }
-                    if (selectedApps.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = { showActionStep = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.idle_manager_select_action_count,
-                                    selectedApps.size
-                                )
+                    } else {
+                        items(filtered) { app ->
+                            val isSelected = selectedApps.any { it.packageName == app.packageName }
+                            ListItem(
+                                headlineContent = { Text(app.label) },
+                                supportingContent = { Text(app.packageName) },
+                                leadingContent = {
+                                    Image(
+                                        bitmap = app.icon.toBitmap(80, 80).asImageBitmap(),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
+                                    )
+                                },
+                                trailingContent = {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = {
+                                            selectedApps = if (isSelected) {
+                                                selectedApps.filter { it.packageName != app.packageName }.toSet()
+                                            } else {
+                                                selectedApps + app
+                                            }
+                                        }
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    selectedApps = if (isSelected) {
+                                        selectedApps.filter { it.packageName != app.packageName }.toSet()
+                                    } else {
+                                        selectedApps + app
+                                    }
+                                }
                             )
                         }
                     }
-                } else {
-                    ActionSelector(
-                        modifier  = Modifier.weight(1f),
-                        onConfirm = { action ->
-                            val snapshot = selectedApps.toList()
-                            snapshot.forEach {
-                                app -> onAppAdded(app, action)
-                            }
-                            onAllAppsAdded()
-                        }
-                    )
                 }
-            }
-        },
-        confirmButton = {
-            if (!showActionStep) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.cancel))
+                if (selectedApps.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = { showActionStep = true },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.idle_manager_select_action_count,
+                                selectedApps.size
+                            )
+                        )
+                    }
                 }
-            }
-        },
-        dismissButton = null
-    )
-}
-
-@Composable
-private fun AppSelectRow(app: IdleAppItem, selected: Boolean, onClick: () -> Unit) {
-    val isCritical = app.isSystem && CRITICAL_SYSTEM_PACKAGES.contains(app.packageName)
-    val iconBmp = remember(app.packageName) {
-        app.icon.toBitmap(80, 80).asImageBitmap()
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(
-                if (selected) 
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                else          
-                    Color.Transparent,
-                RoundedCornerShape(10.dp)
-            )
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box {
-            Image(iconBmp, null, Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)))
-            if (app.isSystem) {
-                Badge(
-                    Modifier.align(Alignment.BottomEnd),
-                    containerColor = if (isCritical)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.tertiary
-                ) {}
-            }
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            } else {
                 Text(
-                    app.label,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    text = stringResource(R.string.idle_manager_select_action),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
                 )
-                if (isCritical) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        Icons.Default.Warning, null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(14.dp)
-                    )
+                Spacer(Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    IdleAction.entries.forEach { action ->
+                        val description = when (action) {
+                            IdleAction.STANDBY_BUCKET_RARE -> "Limit background updates to hourly intervals"
+                            IdleAction.STANDBY_BUCKET_RESTRICTED -> "Severely limit background activity"
+                            IdleAction.KILL_BACKGROUND -> "Terminate background processes when screen is off"
+                            IdleAction.FULL_KILL -> "Force stop the app completely on idle state"
+                        }
+                        ListItem(
+                            headlineContent = { Text(action.name.replace("_", " ")) },
+                            supportingContent = { Text(description) },
+                            leadingContent = {
+                                Icon(action.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            modifier = Modifier
+                                .clickable {
+                                    selectedApps.forEach { app ->
+                                        onAppAdded(app, action)
+                                    }
+                                    onDismiss()
+                                }
+                                .clip(MaterialTheme.shapes.medium)
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = { showActionStep = false },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                ) {
+                    Text(stringResource(R.string.idle_manager_back_to_apps))
                 }
             }
-            Text(
-                app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        if (selected) {
-            Icon(
-                Icons.Default.Check, null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditAppDialog(
     config: IdleAppConfig,
     onDismiss: () -> Unit,
     onSave: (IdleAction) -> Unit
 ) {
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(stringResource(R.string.idle_manager_edit_action, config.label))
-        },
-        text  = {
-            ActionSelector(
-                initialAction = config.action,
-                onConfirm = {
-                    action -> onSave(action)
-                }
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.idle_manager_edit_action, config.label),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp),
+                color = MaterialTheme.colorScheme.onSurface
             )
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+
+            IdleAction.entries.forEach { action ->
+                val description = when (action) {
+                    IdleAction.STANDBY_BUCKET_RARE -> "Limit background updates to hourly intervals"
+                    IdleAction.STANDBY_BUCKET_RESTRICTED -> "Severely limit background activity"
+                    IdleAction.KILL_BACKGROUND -> "Terminate background processes when screen is off"
+                    IdleAction.FULL_KILL -> "Force stop the app completely on idle state"
+                }
+
+                ListItem(
+                    headlineContent = { Text(action.name.replace("_", " ")) },
+                    supportingContent = { Text(description) },
+                    leadingContent = {
+                        Icon(action.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    modifier = Modifier
+                        .clickable { onSave(action) }
+                        .clip(MaterialTheme.shapes.medium),
+                    colors = ListItemDefaults.colors(
+                        containerColor = if (config.action == action)
+                            MaterialTheme.colorScheme.secondaryContainer
+                        else
+                            Color.Transparent
+                    )
+                )
             }
+            Spacer(modifier = Modifier.height(16.dp))
         }
-    )
+    }
 }
 
 @Composable
