@@ -8,7 +8,7 @@
     xmlns:settings="http://schemas.android.com/apk/res-auto"
     android:title="@string/quick_launch_title">
 
-    <com.android.settings.quicklaunch.QuickLaunchSettings$QuickLaunchLayoutPreference
+    <com.android.settings.quicklaunch.QuickLaunchSettings.QuickLaunchLayoutPreference
         android:key="quick_launch_layout"
         android:layout="@layout/quick_launch_settings" />
 
