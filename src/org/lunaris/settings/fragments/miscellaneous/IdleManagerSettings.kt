@@ -66,8 +66,6 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
@@ -79,32 +77,25 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.SearchBar
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -137,6 +128,23 @@ import org.json.JSONObject
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+internal enum class IdlePolicy {
+    BALANCED, AGGRESSIVE, CUSTOM;
+
+    val defaultMinutes: Int
+        get() = when (this) {
+            BALANCED -> 60
+            AGGRESSIVE -> 15
+            CUSTOM -> 30
+        }
+
+    companion object {
+        fun fromString(v: String) = entries.firstOrNull {
+            it.name == v 
+            } ?: BALANCED
+    }
+}
+
 internal enum class IdleAction {
     STANDBY_BUCKET_RARE,
     STANDBY_BUCKET_RESTRICTED,
@@ -152,7 +160,9 @@ internal enum class IdleAction {
         }
 
     companion object {
-        fun fromString(v: String) = entries.firstOrNull { it.name == v } ?: STANDBY_BUCKET_RARE
+        fun fromString(v: String) = entries.firstOrNull {
+            it.name == v 
+            } ?: STANDBY_BUCKET_RARE
     }
 }
 
@@ -180,6 +190,8 @@ private data class IdleAppConfig(
     val label: String,
     val icon: Drawable,
     val isSystem: Boolean,
+    val policy: IdlePolicy,
+    val customTimeoutMinutes: Int,
     val action: IdleAction
 )
 
@@ -222,6 +234,8 @@ private fun readAppConfigs(ctx: Context): LinkedHashMap<String, IdleAppConfig> {
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
             val pkg = obj.getString("package")
+            val pol = IdlePolicy.fromString(obj.optString("policy", "BALANCED"))
+            val mins = obj.optInt("timeout_minutes", pol.defaultMinutes)
             val act = IdleAction.fromString(
                 obj.optString("action", IdleAction.STANDBY_BUCKET_RARE.name)
             )
@@ -230,6 +244,8 @@ private fun readAppConfigs(ctx: Context): LinkedHashMap<String, IdleAppConfig> {
                 label = pkg,
                 icon = android.graphics.drawable.ColorDrawable(0),
                 isSystem = false,
+                policy = pol,
+                customTimeoutMinutes = mins,
                 action = act
             )
         }
@@ -242,7 +258,9 @@ private fun writeAppConfigs(ctx: Context, configs: Map<String, IdleAppConfig>) {
     configs.values.forEach { c ->
         arr.put(JSONObject().apply {
             put("package", c.packageName)
-            put("action",  c.action.name)
+            put("policy", c.policy.name)
+            put("timeout_minutes", c.customTimeoutMinutes)
+            put("action", c.action.name)
         })
     }
     Settings.Secure.putString(
@@ -288,10 +306,10 @@ private fun formatElapsed(ms: Long): String {
     if (ms == 0L) return "never"
     val elapsed = System.currentTimeMillis() - ms
     val mins = TimeUnit.MILLISECONDS.toMinutes(elapsed)
-    val hrs  = TimeUnit.MILLISECONDS.toHours(elapsed)
+    val hrs = TimeUnit.MILLISECONDS.toHours(elapsed)
     val days = TimeUnit.MILLISECONDS.toDays(elapsed)
     return when {
-        mins < 1  -> "just now"
+        mins < 1 -> "just now"
         mins < 60 -> "${mins}m ago"
         hrs < 24 -> "${hrs}h ago"
         else -> "${days}d ago"
@@ -403,7 +421,10 @@ class IdleManagerSettings : Fragment() {
         container: android.view.ViewGroup?,
         savedInstanceState: Bundle?
     ) = ComposeView(requireContext()).apply {
-        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setViewCompositionStrategy(
+            ViewCompositionStrategy
+                .DisposeOnViewTreeLifecycleDestroyed
+        )
         setContent {
             SettingsTheme {
                 IdleManagerRoot(
@@ -453,19 +474,18 @@ private fun IdleManagerRoot(
     ): LinkedHashMap<String, IdleAppConfig> {
         val out = linkedMapOf<String, IdleAppConfig>()
         raw.forEach { (pkg, cfg) ->
-            val app = apps.find { it.packageName == pkg }
-            if (app != null) {
-                out[pkg] = cfg.copy(label = app.label, icon = app.icon, isSystem = app.isSystem)
-            } else {
-                out[pkg] = cfg
-            }
+            val app = apps.find { it.packageName == pkg } ?: return@forEach
+            out[pkg] = cfg.copy(label = app.label, icon = app.icon, isSystem = app.isSystem)
         }
         return out
     }
 
     fun refreshRecords() {
         scope.launch {
-            records = withContext(Dispatchers.IO) { readEnforcementRecords(ctx, allApps) }
+            val result = withContext(Dispatchers.IO) {
+                readEnforcementRecords(ctx, allApps)
+            }
+            records = result
         }
     }
 
@@ -483,13 +503,15 @@ private fun IdleManagerRoot(
 
     fun persist(updated: LinkedHashMap<String, IdleAppConfig>) {
         configuredApps = updated
-        scope.launch(Dispatchers.IO) { writeAppConfigs(ctx, updated) }
+        scope.launch(Dispatchers.IO) {
+            writeAppConfigs(ctx, updated)
+        }
     }
 
-    fun upsert(pkg: String, action: IdleAction, app: IdleAppItem) {
+    fun upsert(pkg: String, policy: IdlePolicy, mins: Int, action: IdleAction, app: IdleAppItem) {
         persist(linkedMapOf<String, IdleAppConfig>().apply {
             putAll(configuredApps)
-            put(pkg, IdleAppConfig(pkg, app.label, app.icon, app.isSystem, action))
+            put(pkg, IdleAppConfig(pkg, app.label, app.icon, app.isSystem, policy, mins, action))
         })
     }
 
@@ -504,9 +526,13 @@ private fun IdleManagerRoot(
     fun clearStats() {
         scope.launch(Dispatchers.IO) {
             Settings.Secure.putString(
-                ctx.contentResolver, Settings.Secure.IDLE_MANAGER_KILL_STATS, ""
+                ctx.contentResolver,
+                Settings.Secure.IDLE_MANAGER_KILL_STATS,
+                ""
             )
-            withContext(Dispatchers.Main) { records = emptyList() }
+            withContext(Dispatchers.Main) {
+                records = emptyList()
+            }
         }
     }
 
@@ -527,6 +553,8 @@ private fun IdleManagerRoot(
                 if (selectedApps.contains(pkg)) {
                     appsArray.put(JSONObject().apply {
                         put("package", cfg.packageName)
+                        put("policy", cfg.policy.name)
+                        put("timeout_minutes", cfg.customTimeoutMinutes)
                         put("action", cfg.action.name)
                     })
                 }
@@ -562,6 +590,8 @@ private fun IdleManagerRoot(
                         val obj = appsArray.getJSONObject(i)
                         val pkg = obj.getString("package")
                         if (selectedApps.contains(pkg)) {
+                            val policy = IdlePolicy.fromString(obj.optString("policy", "BALANCED"))
+                            val mins = obj.optInt("timeout_minutes", policy.defaultMinutes)
                             val action = IdleAction.fromString(
                                 obj.optString("action", IdleAction.STANDBY_BUCKET_RARE.name)
                             )
@@ -570,6 +600,8 @@ private fun IdleManagerRoot(
                                 label = pkg,
                                 icon = android.graphics.drawable.ColorDrawable(0),
                                 isSystem = false,
+                                policy = policy,
+                                customTimeoutMinutes = mins,
                                 action = action
                             )
                         }
@@ -610,31 +642,39 @@ private fun IdleManagerRoot(
                                    || (ai.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
                     )
                 }
-                .distinctBy { it.packageName }
-                .sortedBy { it.label.lowercase(Locale.getDefault()) }
+                .distinctBy {
+                    it.packageName 
+                }
+                .sortedBy {
+                    it.label.lowercase(Locale.getDefault()) 
+                }
         }
         loadAll()
     }
 
     if (showAddDialog) {
-        FullScreenAppSelector(
+        AddAppDialog(
             allApps = allApps,
             configuredPackages = configuredApps.keys,
-            onDismiss = { showAddDialog = false },
-            onAppAdded = { app, action ->
-                upsert(app.packageName, action, app)
+            onDismiss = {
+                showAddDialog = false 
+            },
+            onAppAdded = { app, policy, mins, action ->
+                upsert(app.packageName, policy, mins, action, app)
+                showAddDialog = false
             }
         )
-        return
     }
 
     showEditDialog?.let { target ->
         EditAppDialog(
             config = target,
-            onDismiss = { showEditDialog = null },
-            onSave = { action ->
+            onDismiss = {
+                showEditDialog = null 
+            },
+            onSave = { policy, mins, action ->
                 upsert(
-                    target.packageName, action,
+                    target.packageName, policy, mins, action,
                     IdleAppItem(target.packageName, target.label, target.icon, target.isSystem)
                 )
                 showEditDialog = null
@@ -644,19 +684,31 @@ private fun IdleManagerRoot(
 
     if (showClearConfirm) {
         AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text(stringResource(R.string.idle_manager_clear_all)) },
-            text = { Text(stringResource(R.string.idle_manager_clear_all_confirm)) },
+            onDismissRequest = {
+                showClearConfirm = false 
+            },
+            icon  = { 
+                Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) 
+            },
+            title = { 
+                Text(stringResource(R.string.idle_manager_clear_all)) 
+            },
+            text  = { 
+                Text(stringResource(R.string.idle_manager_clear_all_confirm)) 
+            },
             confirmButton = {
                 Button(
                     onClick = { clearAll(); showClearConfirm = false },
-                    colors  = ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.idle_manager_clear_all)) }
+                ) {
+                    Text(stringResource(R.string.idle_manager_clear_all))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) {
+                TextButton(onClick = {
+                    showClearConfirm = false 
+                }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -696,12 +748,16 @@ private fun IdleManagerRoot(
                 .padding(padding)
         ) {
             MasterToggleCard(
-                enabled  = globalEnabled,
+                enabled = globalEnabled,
                 appCount = configuredApps.size,
                 onToggle = { v ->
-                    scope.launch { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+                    scope.launch {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress) 
+                    }
                     globalEnabled = v
-                    scope.launch(Dispatchers.IO) { writeEnabled(ctx, v) }
+                    scope.launch(Dispatchers.IO) {
+                        writeEnabled(ctx, v)
+                    }
                 },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
             )
@@ -724,37 +780,68 @@ private fun IdleManagerRoot(
                     ) {
                         Tab(
                             selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text(stringResource(R.string.idle_manager_tab_apps)) },
-                            icon = { Icon(Icons.Default.Apps, null) }
+                            onClick = {
+                                selectedTab = 0 
+                            },
+                            text = {
+                                Text(stringResource(R.string.idle_manager_tab_apps)) 
+                            },
+                            icon = {
+                                Icon(Icons.Default.Apps, null) 
+                            }
                         )
                         Tab(
                             selected = selectedTab == 1,
-                            onClick = { selectedTab = 1; refreshRecords() },
-                            text = { Text(stringResource(R.string.idle_manager_tab_dashboard)) },
-                            icon = { Icon(Icons.Default.Dashboard, null) }
+                            onClick = {
+                                selectedTab = 1
+                                refreshRecords()
+                            },
+                            text = { 
+                                Text(stringResource(R.string.idle_manager_tab_dashboard)) 
+                            },
+                            icon = {
+                                Icon(Icons.Default.Dashboard, null) 
+                            }
                         )
                     }
 
                     AnimatedContent(
                         targetState = selectedTab,
-                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
+                        transitionSpec = {
+                            fadeIn(tween(200)) togetherWith fadeOut(tween(200)) 
+                        },
                         label = "tab_content"
                     ) { tab ->
-                        LaunchedEffect(tab) { if (tab == 1) refreshRecords() }
+                        LaunchedEffect(tab) {
+                            if (tab == 1) {
+                                refreshRecords()
+                            }
+                        }
                         when (tab) {
                             0 -> AppsTab(
                                 configuredApps = configuredApps,
-                                onAdd = { showAddDialog = true },
-                                onClearAll = { showClearConfirm = true },
-                                onEdit = { showEditDialog = it },
-                                onRemove = { remove(it) },
+                                onAdd = { 
+                                    showAddDialog = true 
+                                },
+                                onClearAll = {
+                                    showClearConfirm = true 
+                                },
+                                onEdit = { 
+                                    showEditDialog = it 
+                                },
+                                onRemove = { 
+                                    remove(it) 
+                                },
                                 records = records
                             )
                             1 -> DashboardTab(
                                 records = records,
-                                onRefresh = { refreshRecords() },
-                                onClearStats = { clearStats() }
+                                onRefresh = { 
+                                    refreshRecords()
+                                },
+                                onClearStats = {
+                                    clearStats()
+                                }
                             )
                         }
                     }
@@ -775,7 +862,8 @@ private fun MasterToggleCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceBright)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceBright)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -784,7 +872,9 @@ private fun MasterToggleCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(48.dp).clip(CircleShape)
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center
                 ) {
@@ -798,11 +888,11 @@ private fun MasterToggleCard(
                 Column {
                     Text(
                         stringResource(R.string.idle_manager_title),
-                        style      = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text  = if (enabled)
+                        text = if (enabled)
                                     stringResource(R.string.idle_manager_app_count, appCount)
                                 else
                                     stringResource(R.string.idle_manager_disabled),
@@ -812,9 +902,9 @@ private fun MasterToggleCard(
                 }
             }
             Switch(
-                checked         = enabled,
+                checked = enabled,
                 onCheckedChange = onToggle,
-                thumbContent    = {
+                thumbContent = {
                     Crossfade(
                         targetState = enabled,
                         animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
@@ -824,42 +914,6 @@ private fun MasterToggleCard(
                         else Icon(Icons.Rounded.Close, null, Modifier.size(16.dp))
                     }
                 }
-            )
-        }
-    }
-}
-
-@Composable
-private fun InfoOnboardingCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        ),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "How it works",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Idle Manager automatically suspends background apps to save battery when your screen is off, while preserving important notifications.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
             )
         }
     }
@@ -880,8 +934,6 @@ private fun AppsTab(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(Modifier.height(12.dp))
-        InfoOnboardingCard()
         Spacer(Modifier.height(12.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -920,22 +972,20 @@ private fun AppsTab(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
             )
-            val appList = configuredApps.values.toList()
-            appList.forEachIndexed { index, cfg ->
-                val shape = when {
-                    appList.size == 1 -> RoundedCornerShape(24.dp)
-                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                    index == appList.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
-                    else -> RoundedCornerShape(4.dp)
-                }
+            configuredApps.values.forEach { cfg ->
                 AppConfigCard(
                     config = cfg,
-                    record = records.find { it.packageName == cfg.packageName },
-                    onEdit = { onEdit(cfg) },
-                    onRemove = { onRemove(cfg.packageName) },
-                    shape = shape,
-                    modifier = Modifier.padding(vertical = 1.dp)
+                    record = records.find {
+                        it.packageName == cfg.packageName
+                    },
+                    onEdit = {
+                        onEdit(cfg)
+                    },
+                    onRemove = {
+                        onRemove(cfg.packageName)
+                    }
                 )
+                Spacer(Modifier.height(8.dp))
             }
         }
 
@@ -949,9 +999,11 @@ private fun DashboardTab(
     onRefresh: () -> Unit,
     onClearStats: () -> Unit
 ) {
-    var showClearStatsConfirm by remember { mutableStateOf(false) }
+    var showClearStatsConfirm by remember {
+        mutableStateOf(false)
+    }
 
-    LaunchedEffect(records.size) {
+    LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(10_000L)
             onRefresh()
@@ -961,15 +1013,26 @@ private fun DashboardTab(
     if (showClearStatsConfirm) {
         AlertDialog(
             onDismissRequest = { showClearStatsConfirm = false },
-            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text(stringResource(R.string.idle_manager_clear_stats_title)) },
-            text = { Text(stringResource(R.string.idle_manager_clear_stats_confirm)) },
+            icon = {
+                Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = {
+                Text(stringResource(R.string.idle_manager_clear_stats_title))
+            },
+            text = {
+                Text(stringResource(R.string.idle_manager_clear_stats_confirm))
+            },
             confirmButton = {
                 Button(
-                    onClick = { onClearStats(); showClearStatsConfirm = false },
-                    colors  = ButtonDefaults.buttonColors(
+                    onClick = {
+                        onClearStats()
+                        showClearStatsConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.idle_manager_clear_stats_title)) }
+                ) {
+                    Text(stringResource(R.string.idle_manager_clear_stats_title))
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showClearStatsConfirm = false }) {
@@ -996,7 +1059,9 @@ private fun DashboardTab(
             )
             StatCard(
                 label = stringResource(R.string.idle_manager_total_actions),
-                value = records.sumOf { it.killCount }.toString(),
+                value = records.sumOf {
+                    it.killCount
+                }.toString(),
                 icon = Icons.Default.FlashOn,
                 modifier = Modifier.weight(1f)
             )
@@ -1017,7 +1082,10 @@ private fun DashboardTab(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
                 )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     byAction.forEach { (action, count) ->
                         ActionBadgeCard(action, count, Modifier.weight(1f))
                     }
@@ -1042,11 +1110,16 @@ private fun DashboardTab(
                 OutlinedButton(
                     onClick = { showClearStatsConfirm = true },
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error),
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 12.dp, vertical = 6.dp)
+                        horizontal = 12.dp, vertical = 6.dp
+                    )
                 ) {
-                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(14.dp))
+                    Icon(
+                        Icons.Default.Delete, null,
+                        modifier = Modifier.size(14.dp)
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         stringResource(R.string.idle_manager_clear_stats_button),
@@ -1070,9 +1143,11 @@ private fun DashboardTab(
         Spacer(Modifier.height(8.dp))
 
         TextButton(
-            onClick  = onRefresh,
+            onClick = onRefresh,
             modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) { Text(stringResource(R.string.idle_manager_refresh_dashboard)) }
+        ) {
+            Text(stringResource(R.string.idle_manager_refresh_dashboard))
+        }
 
         Spacer(Modifier.height(85.dp))
     }
@@ -1095,9 +1170,11 @@ private fun StatCard(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(icon, null,
+            Icon(
+                icon, null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(28.dp))
+                modifier = Modifier.size(28.dp)
+            )
             Spacer(Modifier.height(4.dp))
             Text(
                 value,
@@ -1162,7 +1239,9 @@ private fun EnforcementRecordCard(record: EnforcementRecord) {
                 Image(bmp, null, Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)))
             } else {
                 Box(
-                    Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                    Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1209,7 +1288,7 @@ private fun EnforcementRecordCard(record: EnforcementRecord) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(record.actionTaken.icon, null,
-                        tint     = color,
+                        tint = color,
                         modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
@@ -1230,35 +1309,52 @@ private fun AppConfigCard(
     config: IdleAppConfig,
     record: EnforcementRecord?,
     onEdit: () -> Unit,
-    onRemove: () -> Unit,
-    shape: androidx.compose.foundation.shape.CornerBasedShape = RoundedCornerShape(16.dp),
-    modifier: Modifier = Modifier
+    onRemove: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var showRemoveAlert by remember { mutableStateOf(false) }
+    var expanded by remember {
+        mutableStateOf(false)
+    }
 
-    val iconBmp    = remember(config.packageName) { config.icon.toBitmap(96, 96).asImageBitmap() }
+    var showRemoveAlert by remember {
+        mutableStateOf(false)
+    }
+
+    val iconBmp = remember(config.packageName) {
+        config.icon.toBitmap(96, 96).asImageBitmap()
+    }
+
     val isCritical = config.isSystem && CRITICAL_SYSTEM_PACKAGES.contains(config.packageName)
+    val policyColor = policyColor(config.policy)
     val actionColor = actionColor(config.action)
 
     if (showRemoveAlert) {
         AlertDialog(
             onDismissRequest = { showRemoveAlert = false },
-            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text(stringResource(R.string.idle_manager_remove_title)) },
-            text = { Text(stringResource(R.string.idle_manager_remove_confirm, config.label)) },
+            icon  = {
+                Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
+            },
+            title = {
+                Text(stringResource(R.string.idle_manager_remove_title))
+            },
+            text  = {
+                Text(stringResource(R.string.idle_manager_remove_confirm, config.label))
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         showRemoveAlert = false
                         onRemove()
                     },
-                    colors = ButtonDefaults.buttonColors(
+                    colors  = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.remove)) }
+                ) {
+                    Text(stringResource(R.string.remove))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showRemoveAlert = false }) {
+                TextButton(onClick = {
+                    showRemoveAlert = false
+                }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -1266,18 +1362,32 @@ private fun AppConfigCard(
     }
 
     Card(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
-            .combinedClickable(onClick = { expanded = !expanded }, onLongClick = onEdit),
-        shape  = shape,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceBright)
+            .combinedClickable(onClick = {
+                expanded = !expanded
+            },
+            onLongClick = onEdit
+            ),
+        shape  = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+            )
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(
+            Modifier.padding(16.dp)) {
 
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth(), 
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box {
-                    Image(iconBmp, null, Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)))
+                    Image(
+                        iconBmp,
+                        null,
+                        Modifier.size(42.dp).clip(RoundedCornerShape(10.dp))
+                    )
                     if (config.isSystem) {
                         Badge(
                             Modifier.align(Alignment.BottomEnd),
@@ -1285,7 +1395,9 @@ private fun AppConfigCard(
                                 MaterialTheme.colorScheme.error
                             else
                                 MaterialTheme.colorScheme.tertiary
-                        ) { Text("SYS") }
+                        ) {
+                            Text("SYS")
+                        }
                     }
                     record?.let {
                         if (it.killCount > 0) {
@@ -1293,7 +1405,9 @@ private fun AppConfigCard(
                                 Modifier.align(Alignment.TopEnd),
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ) { Text(if (it.killCount > 99) "99+" else it.killCount.toString()) }
+                            ) {
+                                Text(if (it.killCount > 99) "99+" else it.killCount.toString())
+                            }
                         }
                     }
                 }
@@ -1329,25 +1443,41 @@ private fun AppConfigCard(
                     }
                 }
 
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(actionColor.copy(alpha = 0.15f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            config.action.icon, null,
-                            tint = actionColor,
-                            modifier = Modifier.size(11.dp)
-                        )
-                        Spacer(Modifier.width(3.dp))
+                Column(horizontalAlignment = Alignment.End) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(policyColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
                         Text(
-                            actionDisplayName(config.action),
+                            policyLabel(config.policy, config.customTimeoutMinutes),
                             style = MaterialTheme.typography.labelSmall,
-                            color = actionColor,
+                            color = policyColor,
                             fontWeight = FontWeight.SemiBold
                         )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(actionColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                config.action.icon, null,
+                                tint = actionColor,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Text(
+                                actionDisplayName(config.action),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = actionColor,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
@@ -1368,7 +1498,10 @@ private fun AppConfigCard(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
                     ) {
-                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 Icons.Default.Warning, null,
                                 tint = MaterialTheme.colorScheme.error,
@@ -1391,6 +1524,21 @@ private fun AppConfigCard(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ) {
                     Column(Modifier.padding(12.dp)) {
+                        DetailRow(
+                            stringResource(R.string.idle_manager_policy_label),
+                            policyLabel(config.policy, config.customTimeoutMinutes),
+                            policyColor
+                        )
+                        if (config.policy == IdlePolicy.CUSTOM) {
+                            DetailRow(
+                                stringResource(R.string.idle_manager_timeout_label),
+                                stringResource(
+                                    R.string.idle_manager_timeout_minutes,
+                                    config.customTimeoutMinutes
+                                ),
+                                policyColor
+                            )
+                        }
                         DetailRow(
                             stringResource(R.string.idle_manager_enforcement_action),
                             actionDisplayName(config.action),
@@ -1425,17 +1573,26 @@ private fun AppConfigCard(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { showRemoveAlert = true },
+                    onClick = {
+                        showRemoveAlert = true
+                    },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Icon(Icons.Default.Delete, null, Modifier.size(16.dp))
+                    Icon(
+                        Icons.Default.Delete, null, Modifier.size(16.dp)
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.remove))
                 }
-                FilledTonalButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Edit, null, Modifier.size(16.dp))
+                FilledTonalButton(
+                    onClick = onEdit, 
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.Edit, null, Modifier.size(16.dp)
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.edit))
                 }
@@ -1447,7 +1604,9 @@ private fun AppConfigCard(
 @Composable
 private fun DetailRow(label: String, value: String, color: Color) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium)
@@ -1462,35 +1621,60 @@ private fun DetailRow(label: String, value: String, color: Color) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FullScreenAppSelector(
+private fun AddAppDialog(
     allApps: List<IdleAppItem>,
     configuredPackages: Set<String>,
     onDismiss: () -> Unit,
-    onAppAdded: (IdleAppItem, IdleAction) -> Unit
+    onAppAdded: (IdleAppItem, IdlePolicy, Int, IdleAction) -> Unit
 ) {
-    var search by remember { mutableStateOf("") }
-    var showSystem by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
-    var selectedApps by remember { mutableStateOf(setOf<IdleAppItem>()) }
-    var showActionStep by remember { mutableStateOf(false) }
+    var search by remember {
+        mutableStateOf("")
+    }
+    var showSystem by remember {
+        mutableStateOf(false)
+    }
+    var showMenu by remember {
+        mutableStateOf(false)
+    }
+    var selectedApps by remember {
+        mutableStateOf(setOf<IdleAppItem>())
+    }
+    var showPolicyStep by remember {
+        mutableStateOf(false)
+    }
 
     val filtered = allApps.filter { app ->
-        if (configuredPackages.contains(app.packageName)) return@filter false
-        if (!showSystem && app.isSystem) return@filter false
-        if (search.isBlank()) return@filter true
+        if (configuredPackages.contains(app.packageName)) 
+            return@filter false
+        if (!showSystem && app.isSystem) 
+            return@filter false
+        if (search.isBlank()) 
+            return@filter true
         app.label.contains(search, true) || app.packageName.contains(search, true)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.idle_manager_add_apps)) },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showPolicyStep) {
+                    TextButton(onClick = {
+                        showPolicyStep = false
+                    }) {
+                        Text(stringResource(R.string.idle_manager_back_to_apps))
                     }
-                },
-                actions = {
+                    Text(
+                        stringResource(R.string.idle_manager_select_policy),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.idle_manager_add_apps)
+                    )
                     Box {
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.MoreVert, null)
@@ -1499,10 +1683,8 @@ private fun FullScreenAppSelector(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        if (showSystem)
-                                            stringResource(R.string.hide_system_apps)
-                                        else
-                                            stringResource(R.string.show_system_apps)
+                                        if (showSystem) stringResource(R.string.hide_system_apps)
+                                        else stringResource(R.string.show_system_apps)
                                     )
                                 },
                                 onClick = {
@@ -1513,27 +1695,22 @@ private fun FullScreenAppSelector(
                         }
                     }
                 }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp)
-        ) {
-            if (!showActionStep) {
-                OutlinedTextField(
-                    value = search,
-                    onValueChange = { search = it },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    label = { Text(stringResource(R.string.search_apps)) },
-                    singleLine = true
-                )
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    if (filtered.isEmpty()) {
-                        item {
+            }
+        },
+        text = {
+            Column(Modifier.fillMaxWidth().height(500.dp)) {
+                if (!showPolicyStep) {
+                    OutlinedTextField(
+                        value = search,
+                        onValueChange = { search = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.search_apps)) },
+                        singleLine = true
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Column(Modifier.weight(1f)
+                        .verticalScroll(rememberScrollState())) {
+                        if (filtered.isEmpty()) {
                             Box(
                                 Modifier.fillMaxWidth().padding(32.dp),
                                 contentAlignment = Alignment.Center
@@ -1542,190 +1719,307 @@ private fun FullScreenAppSelector(
                                     if (search.isBlank())
                                         stringResource(R.string.idle_manager_no_apps_available)
                                     else
-                                        stringResource(R.string.idle_manager_no_apps_found, search),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                        stringResource(
+                                            R.string.idle_manager_no_apps_found, search),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        .copy(alpha = 0.5f)
                                 )
                             }
-                        }
-                    } else {
-                        itemsIndexed(filtered) { index, app ->
-                            val isSelected = selectedApps.any { it.packageName == app.packageName }
-                            val shape = when {
-                                filtered.size == 1 -> RoundedCornerShape(20.dp)
-                                index == 0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                                index == filtered.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                                else -> RoundedCornerShape(4.dp)
-                            }
-                            Surface(
-                                shape = shape,
-                                color = MaterialTheme.colorScheme.surfaceBright,
-                                modifier = Modifier.padding(vertical = 1.dp)
-                            ) {
-                                ListItem(
-                                    headlineContent = { Text(app.label) },
-                                    supportingContent = { Text(app.packageName) },
-                                    leadingContent = {
-                                        Image(
-                                            bitmap = app.icon.toBitmap(80, 80).asImageBitmap(),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
-                                        )
-                                    },
-                                    trailingContent = {
-                                        Checkbox(
-                                            checked = isSelected,
-                                            onCheckedChange = {
-                                                selectedApps = if (isSelected) {
-                                                    selectedApps.filter { it.packageName != app.packageName }.toSet()
-                                                } else {
-                                                    selectedApps + app
-                                                }
-                                            }
-                                        )
-                                    },
-                                    modifier = Modifier.clickable {
-                                        selectedApps = if (isSelected) {
-                                            selectedApps.filter { it.packageName != app.packageName }.toSet()
-                                        } else {
-                                            selectedApps + app
-                                        }
+                        } else {
+                            filtered.forEach { app ->
+                                AppSelectRow(
+                                    app = app,
+                                    selected = selectedApps.any {
+                                        it.packageName == app.packageName },
+                                    onClick = {
+                                        selectedApps =
+                                            if (selectedApps.any {
+                                                    it.packageName == app.packageName })
+                                                selectedApps.filter {
+                                                    it.packageName != app.packageName }.toSet()
+                                            else
+                                                selectedApps + app
                                     }
                                 )
                             }
                         }
                     }
-                }
-                if (selectedApps.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { showActionStep = true },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                    ) {
-                        Text(
-                            stringResource(
-                                R.string.idle_manager_select_action_count,
-                                selectedApps.size
+                    if (selectedApps.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = { showPolicyStep = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.idle_manager_select_policy_count,
+                                    selectedApps.size
+                                )
                             )
-                        )
-                    }
-                }
-            } else {
-                Text(
-                    text = stringResource(R.string.idle_manager_select_action),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-                Spacer(Modifier.height(8.dp))
-                Column(
-                    modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    IdleAction.entries.forEach { action ->
-                        val description = when (action) {
-                            IdleAction.STANDBY_BUCKET_RARE -> "Limit background updates to hourly intervals"
-                            IdleAction.STANDBY_BUCKET_RESTRICTED -> "Severely limit background activity"
-                            IdleAction.KILL_BACKGROUND -> "Terminate background processes when screen is off"
-                            IdleAction.FULL_KILL -> "Force stop the app completely on idle state"
                         }
-                        ListItem(
-                            headlineContent = { Text(action.name.replace("_", " ")) },
-                            supportingContent = { Text(description) },
-                            leadingContent = {
-                                Icon(action.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            },
-                            modifier = Modifier
-                                .clickable {
-                                    selectedApps.forEach { app ->
-                                        onAppAdded(app, action)
-                                    }
-                                    onDismiss()
-                                }
-                                .clip(MaterialTheme.shapes.medium)
-                        )
                     }
-                }
-                TextButton(
-                    onClick = { showActionStep = false },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                ) {
-                    Text(stringResource(R.string.idle_manager_back_to_apps))
+                } else {
+                    PolicyAndActionSelector(
+                        modifier = Modifier.weight(1f),
+                        onConfirm = { policy, mins, action ->
+                            selectedApps.forEach { app ->
+                                onAppAdded(app, policy, mins, action)
+                            }
+                        }
+                    )
                 }
             }
+        },
+        confirmButton = {
+            if (!showPolicyStep) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        },
+        dismissButton = null
+    )
+}
+
+@Composable
+private fun AppSelectRow(app: IdleAppItem, selected: Boolean, onClick: () -> Unit) {
+    val isCritical = app.isSystem && CRITICAL_SYSTEM_PACKAGES.contains(app.packageName)
+    val iconBmp = remember(app.packageName) {
+        app.icon.toBitmap(80, 80).asImageBitmap()
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .background(
+                if (selected) 
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                else 
+                    Color.Transparent,
+                RoundedCornerShape(10.dp)
+            )
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box {
+            Image(iconBmp, null,
+                Modifier.size(32.dp)
+                    .clip(RoundedCornerShape(8.dp)))
+            if (app.isSystem) {
+                Badge(
+                    Modifier.align(Alignment.BottomEnd),
+                    containerColor = if (isCritical) 
+                        MaterialTheme.colorScheme.error
+                    else 
+                        MaterialTheme.colorScheme.tertiary
+                ) {}
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    app.label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (isCritical) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Warning, null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+            Text(
+                app.packageName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (selected) {
+            Icon(
+                Icons.Default.Check, null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditAppDialog(
     config: IdleAppConfig,
     onDismiss: () -> Unit,
-    onSave: (IdleAction) -> Unit
+    onSave: (IdlePolicy, Int, IdleAction) -> Unit
 ) {
-    ModalBottomSheet(
+    AlertDialog(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.idle_manager_edit_action, config.label),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp),
-                color = MaterialTheme.colorScheme.onSurface
+        title = {
+            Text(stringResource(
+                R.string.idle_manager_edit_policy, 
+                config.label)
             )
-
-            IdleAction.entries.forEach { action ->
-                val description = when (action) {
-                    IdleAction.STANDBY_BUCKET_RARE -> "Limit background updates to hourly intervals"
-                    IdleAction.STANDBY_BUCKET_RESTRICTED -> "Severely limit background activity"
-                    IdleAction.KILL_BACKGROUND -> "Terminate background processes when screen is off"
-                    IdleAction.FULL_KILL -> "Force stop the app completely on idle state"
+        },
+        text = {
+            PolicyAndActionSelector(
+                initialPolicy = config.policy,
+                initialMinutes = config.customTimeoutMinutes,
+                initialAction = config.action,
+                onConfirm = {
+                    policy, mins, action -> onSave(policy, mins, action) 
                 }
-
-                ListItem(
-                    headlineContent = { Text(action.name.replace("_", " ")) },
-                    supportingContent = { Text(description) },
-                    leadingContent = {
-                        Icon(action.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    },
-                    modifier = Modifier
-                        .clickable { onSave(action) }
-                        .clip(MaterialTheme.shapes.medium),
-                    colors = ListItemDefaults.colors(
-                        containerColor = if (config.action == action)
-                            MaterialTheme.colorScheme.secondaryContainer
-                        else
-                            Color.Transparent
-                    )
-                )
+            )
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
-    }
+    )
 }
 
 @Composable
-private fun ActionSelector(
+private fun PolicyAndActionSelector(
     modifier: Modifier = Modifier,
+    initialPolicy: IdlePolicy = IdlePolicy.BALANCED,
+    initialMinutes: Int = 60,
     initialAction: IdleAction = IdleAction.STANDBY_BUCKET_RARE,
-    onConfirm: (IdleAction) -> Unit
+    onConfirm: (IdlePolicy, Int, IdleAction) -> Unit
 ) {
-    var selectedAction by remember {
-        mutableStateOf(initialAction)
+    var selectedPolicy by 
+    remember { 
+        mutableStateOf(initialPolicy) 
+    }
+    var customMinutes  by 
+    remember {
+        mutableFloatStateOf(initialMinutes.toFloat().coerceIn(5f, 240f))
+    }
+    var selectedAction by 
+    remember { 
+        mutableStateOf(initialAction) 
     }
 
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Text(
+            stringResource(R.string.idle_manager_idle_timeout),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            IdlePolicy.entries.forEach { pol ->
+                FilterChip(
+                    selected = selectedPolicy == pol,
+                    onClick = {
+                        selectedPolicy = pol 
+                    },
+                    label = {
+                        Text(
+                            policyDisplayName(pol),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    leadingIcon = if (selectedPolicy == pol) {
+                        { 
+                            Icon(Icons.Default.Check, null, Modifier.size(16.dp)) 
+                        }
+                    } else null
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = selectedPolicy == IdlePolicy.CUSTOM,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.idle_manager_timeout_label),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            formatMinutes(customMinutes.toInt()),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Slider(
+                    value = customMinutes,
+                    onValueChange = { customMinutes = it },
+                    valueRange = 5f..240f,
+                    steps = 46,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "5 min",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "4 hours",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ) {
+            Text(
+                text = when (selectedPolicy) {
+                    IdlePolicy.BALANCED   ->
+                        stringResource(R.string.idle_manager_policy_balanced_desc)
+                    IdlePolicy.AGGRESSIVE ->
+                        stringResource(R.string.idle_manager_policy_aggressive_desc)
+                    IdlePolicy.CUSTOM     ->
+                        stringResource(
+                            R.string.idle_manager_policy_custom_desc_dynamic,
+                            customMinutes.toInt()
+                        )
+                },
+                modifier = Modifier.padding(10.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         Text(
             stringResource(R.string.idle_manager_enforcement_action),
             style = MaterialTheme.typography.labelMedium,
@@ -1738,7 +2032,7 @@ private fun ActionSelector(
                 action = action,
                 selected = selectedAction == action,
                 onClick = {
-                    selectedAction = action
+                    selectedAction = action 
                 }
             )
         }
@@ -1746,8 +2040,13 @@ private fun ActionSelector(
         Spacer(Modifier.height(4.dp))
 
         Button(
-            onClick  = { 
-                onConfirm(selectedAction) 
+            onClick = {
+                val mins = when (selectedPolicy) {
+                    IdlePolicy.BALANCED -> 60
+                    IdlePolicy.AGGRESSIVE -> 15
+                    IdlePolicy.CUSTOM -> customMinutes.toInt()
+                }
+                onConfirm(selectedPolicy, mins, selectedAction)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1768,17 +2067,25 @@ private fun ActionOptionCard(action: IdleAction, selected: Boolean, onClick: () 
             .clickable(onClick = onClick),
         color = if (selected) 
                     color.copy(alpha = 0.12f)
-                else  
+                else 
                     MaterialTheme.colorScheme.surfaceBright,
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(36.dp).clip(CircleShape)
-                    .background(color.copy(alpha = if (selected) 0.2f else 0.08f)),
+                Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(
+                        alpha = if (selected) 0.2f else 0.08f
+                    )),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(action.icon, null, tint = color, modifier = Modifier.size(20.dp))
+                Icon(action.icon, null,
+                    tint = color, 
+                    modifier = Modifier.size(20.dp)
+                )
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -1795,7 +2102,11 @@ private fun ActionOptionCard(action: IdleAction, selected: Boolean, onClick: () 
                 )
             }
             if (selected) {
-                Icon(Icons.Default.Check, null, tint = color, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Default.Check, null,
+                    tint = color,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -1805,7 +2116,7 @@ private fun ActionOptionCard(action: IdleAction, selected: Boolean, onClick: () 
 private fun EmptyAppsState() {
     Card(
         Modifier.fillMaxWidth(),
-        shape  = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
@@ -1838,7 +2149,7 @@ private fun EmptyAppsState() {
 private fun EmptyDashboardState() {
     Card(
         Modifier.fillMaxWidth(),
-        shape  = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
@@ -1868,11 +2179,25 @@ private fun EmptyDashboardState() {
 }
 
 @Composable
+private fun policyColor(policy: IdlePolicy): Color = when (policy) {
+    IdlePolicy.BALANCED -> MaterialTheme.colorScheme.tertiary
+    IdlePolicy.AGGRESSIVE -> MaterialTheme.colorScheme.error
+    IdlePolicy.CUSTOM -> MaterialTheme.colorScheme.primary
+}
+
+@Composable
 private fun actionColor(action: IdleAction): Color = when (action) {
     IdleAction.STANDBY_BUCKET_RARE -> MaterialTheme.colorScheme.tertiary
     IdleAction.STANDBY_BUCKET_RESTRICTED -> MaterialTheme.colorScheme.secondary
     IdleAction.KILL_BACKGROUND -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
     IdleAction.FULL_KILL -> MaterialTheme.colorScheme.error
+}
+
+@Composable
+private fun policyDisplayName(policy: IdlePolicy): String = when (policy) {
+    IdlePolicy.BALANCED -> stringResource(R.string.idle_manager_policy_balanced)
+    IdlePolicy.AGGRESSIVE -> stringResource(R.string.idle_manager_policy_aggressive)
+    IdlePolicy.CUSTOM -> stringResource(R.string.idle_manager_policy_custom)
 }
 
 @Composable
@@ -1889,6 +2214,19 @@ private fun actionDescription(action: IdleAction): String = when (action) {
     IdleAction.STANDBY_BUCKET_RESTRICTED -> stringResource(R.string.idle_action_restricted_desc)
     IdleAction.KILL_BACKGROUND -> stringResource(R.string.idle_action_kill_bg_desc)
     IdleAction.FULL_KILL -> stringResource(R.string.idle_action_full_kill_desc)
+}
+
+private fun policyLabel(policy: IdlePolicy, customMinutes: Int): String = when (policy) {
+    IdlePolicy.BALANCED -> "60 min"
+    IdlePolicy.AGGRESSIVE -> "15 min"
+    IdlePolicy.CUSTOM -> "$customMinutes min"
+}
+
+private fun formatMinutes(mins: Int): String = when {
+    mins < 60 -> "$mins min"
+    mins == 60 -> "1 hour"
+    mins % 60 == 0 -> "${mins / 60} hours"
+    else -> "${mins / 60}h ${mins % 60}m"
 }
 
 @Composable
@@ -1975,6 +2313,7 @@ private fun ExportConfigDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                // Global Settings Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2003,6 +2342,7 @@ private fun ExportConfigDialog(
                     }
                 }
 
+                // App Settings Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2138,13 +2478,16 @@ private fun ImportConfigDialog(
     var importApps by remember { mutableStateOf(parsedJson.has("apps")) }
 
     val backupApps = remember(parsedJson) {
-        val list = mutableListOf<Pair<String, String>>()
+        val list = mutableListOf<Triple<String, String, String>>()
         parsedJson.optJSONArray("apps")?.let { arr ->
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
                 list.add(
-                    obj.getString("package") to
-                    obj.optString("action", "STANDBY_BUCKET_RARE")
+                    Triple(
+                        obj.getString("package"),
+                        obj.optString("policy", "BALANCED"),
+                        obj.optString("action", "STANDBY_BUCKET_RARE")
+                    )
                 )
             }
         }
@@ -2248,7 +2591,7 @@ private fun ImportConfigDialog(
                             modifier = Modifier.padding(top = 8.dp)
                         )
 
-                        backupApps.forEach { (pkg, action) ->
+                        backupApps.forEach { (pkg, policy, action) ->
                             val isSelected = selectedApps.contains(pkg)
                             val localApp = appMap[pkg]
                             val isInstalled = localApp != null
@@ -2332,7 +2675,7 @@ private fun ImportConfigDialog(
                                         }
                                     }
                                     Text(
-                                        "$pkg · $action",
+                                        "$pkg · $policy · $action",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
