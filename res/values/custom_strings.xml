@@ -646,4 +646,8 @@
     <string name="doze_on_charge_title">Always on when charging</string>
     <string name="doze_on_charge_summary">Show Always on Display only when device is charging</string>
 
+    <!-- Miscellaneous -->
+    <string name="miscellaneous_settings_title">Miscellaneous</string>
+    <string name="miscellaneous_settings_summary">Additional system features and options</string>
+
 </resources>

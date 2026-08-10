@@ -149,12 +149,12 @@
         android:order="-25"
         android:fragment="com.android.settings.clover.spoofing.SpoofSettings"/>
 
-    <!-- Ignore Window Secure -->
+    <!-- Miscellaneous Settings -->
     <Preference
-        android:key="ignore_window_secure_settings"
-        android:title="@string/ignore_window_secure_title"
-        android:summary="@string/ignore_window_secure_summary"
-        android:icon="@drawable/ic_security_white_24dp"
+        android:key="miscellaneous_settings"
+        android:title="@string/miscellaneous_settings_title"
+        android:summary="@string/miscellaneous_settings_summary"
+        android:icon="@drawable/ic_settings_more"
         android:order="-20"
-        android:fragment="com.android.settings.system.IgnoreWindowSecureSettings"/>
+        android:fragment="com.android.settings.system.MiscellaneousSettings"/>
 </PreferenceScreen>

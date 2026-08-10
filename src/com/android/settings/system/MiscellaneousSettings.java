@@ -11,12 +11,12 @@ import com.android.internal.logging.nano.MetricsProto;
 import com.android.settings.R;
 import com.android.settings.SettingsPreferenceFragment;
 
-public class IgnoreWindowSecureSettings extends SettingsPreferenceFragment {
+public class MiscellaneousSettings extends SettingsPreferenceFragment {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        addPreferencesFromResource(R.xml.ignore_window_secure_settings);
+        addPreferencesFromResource(R.xml.miscellaneous_settings);
     }
 
     @Override
