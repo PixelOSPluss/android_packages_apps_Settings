@@ -154,7 +154,7 @@
         android:key="miscellaneous_settings"
         android:title="@string/miscellaneous_settings_title"
         android:summary="@string/miscellaneous_settings_summary"
-        android:icon="@drawable/ic_settings_more"
+        android:icon="@drawable/ic_settings_accent"
         android:order="-20"
         android:fragment="com.android.settings.system.MiscellaneousSettings"/>
 </PreferenceScreen>
