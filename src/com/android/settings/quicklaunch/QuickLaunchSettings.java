@@ -217,7 +217,7 @@ public class QuickLaunchSettings extends SettingsPreferenceFragment {
     }
 
     private void updateSlotsPreview() {
-        Preference pref = findPreference("quick_launch_layout");
+        QuickLaunchLayoutPreference pref = findPreference("quick_launch_layout");
         if (pref != null) {
             pref.notifyChanged();
         }
