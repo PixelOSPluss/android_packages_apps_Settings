@@ -99,8 +99,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SearchBar
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -919,14 +920,22 @@ private fun AppsTab(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
             )
-            configuredApps.values.forEach { cfg ->
+            val appList = configuredApps.values.toList()
+            appList.forEachIndexed { index, cfg ->
+                val shape = when {
+                    appList.size == 1 -> RoundedCornerShape(24.dp)
+                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                    index == appList.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+                    else -> RoundedCornerShape(4.dp)
+                }
                 AppConfigCard(
                     config = cfg,
                     record = records.find { it.packageName == cfg.packageName },
                     onEdit = { onEdit(cfg) },
-                    onRemove = { onRemove(cfg.packageName) }
+                    onRemove = { onRemove(cfg.packageName) },
+                    shape = shape,
+                    modifier = Modifier.padding(vertical = 1.dp)
                 )
-                Spacer(Modifier.height(8.dp))
             }
         }
 
@@ -1221,7 +1230,9 @@ private fun AppConfigCard(
     config: IdleAppConfig,
     record: EnforcementRecord?,
     onEdit: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    shape: CornerBasedShape = RoundedCornerShape(16.dp),
+    modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showRemoveAlert by remember { mutableStateOf(false) }
@@ -1255,12 +1266,12 @@ private fun AppConfigCard(
     }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
             .combinedClickable(onClick = { expanded = !expanded }, onLongClick = onEdit),
-        shape  = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape  = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceBright)
     ) {
         Column(Modifier.padding(16.dp)) {
 
@@ -1537,38 +1548,50 @@ private fun FullScreenAppSelector(
                             }
                         }
                     } else {
-                        items(filtered) { app ->
+                        itemsIndexed(filtered) { index, app ->
                             val isSelected = selectedApps.any { it.packageName == app.packageName }
-                            ListItem(
-                                headlineContent = { Text(app.label) },
-                                supportingContent = { Text(app.packageName) },
-                                leadingContent = {
-                                    Image(
-                                        bitmap = app.icon.toBitmap(80, 80).asImageBitmap(),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
-                                    )
-                                },
-                                trailingContent = {
-                                    Checkbox(
-                                        checked = isSelected,
-                                        onCheckedChange = {
-                                            selectedApps = if (isSelected) {
-                                                selectedApps.filter { it.packageName != app.packageName }.toSet()
-                                            } else {
-                                                selectedApps + app
+                            val shape = when {
+                                filtered.size == 1 -> RoundedCornerShape(20.dp)
+                                index == 0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+                                index == filtered.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
+                                else -> RoundedCornerShape(4.dp)
+                            }
+                            Surface(
+                                shape = shape,
+                                color = MaterialTheme.colorScheme.surfaceBright,
+                                modifier = Modifier.padding(vertical = 1.dp)
+                            ) {
+                                ListItem(
+                                    headlineContent = { Text(app.label) },
+                                    supportingContent = { Text(app.packageName) },
+                                    leadingContent = {
+                                        Image(
+                                            bitmap = app.icon.toBitmap(80, 80).asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
+                                        )
+                                    },
+                                    trailingContent = {
+                                        Checkbox(
+                                            checked = isSelected,
+                                            onCheckedChange = {
+                                                selectedApps = if (isSelected) {
+                                                    selectedApps.filter { it.packageName != app.packageName }.toSet()
+                                                } else {
+                                                    selectedApps + app
+                                                }
                                             }
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        selectedApps = if (isSelected) {
+                                            selectedApps.filter { it.packageName != app.packageName }.toSet()
+                                        } else {
+                                            selectedApps + app
                                         }
-                                    )
-                                },
-                                modifier = Modifier.clickable {
-                                    selectedApps = if (isSelected) {
-                                        selectedApps.filter { it.packageName != app.packageName }.toSet()
-                                    } else {
-                                        selectedApps + app
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
