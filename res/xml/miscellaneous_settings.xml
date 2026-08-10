@@ -20,10 +20,4 @@
         android:summary="@string/hide_screen_capture_status_summary"
         android:defaultValue="false"/>
 
-    <Preference
-        android:key="quick_launch_settings"
-        android:title="@string/quick_launch_title"
-        android:summary="@string/quick_launch_summary"
-        android:fragment="com.android.settings.quicklaunch.QuickLaunchSettings" />
-
 </PreferenceScreen>

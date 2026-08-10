@@ -112,6 +112,12 @@
         android:fragment="com.android.settings.gestures.PreventRingingGestureSettings"
         settings:controller="com.android.settings.gestures.PreventRingingParentPreferenceController" />
 
+    <Preference
+        android:key="quick_launch_settings"
+        android:title="@string/quick_launch_title"
+        android:summary="@string/quick_launch_summary"
+        android:fragment="com.android.settings.quicklaunch.QuickLaunchSettings" />
+
     <com.android.settings.custom.preference.RemotePreference
             android:key="touchscreen_gesture_settings"
             android:title="@string/touchscreen_gesture_settings_title"
