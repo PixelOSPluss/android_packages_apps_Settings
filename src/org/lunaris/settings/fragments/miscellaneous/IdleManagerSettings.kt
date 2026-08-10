@@ -99,9 +99,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SearchBar
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -1231,7 +1230,7 @@ private fun AppConfigCard(
     record: EnforcementRecord?,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
-    shape: CornerBasedShape = RoundedCornerShape(16.dp),
+    shape: androidx.compose.foundation.shape.CornerBasedShape = RoundedCornerShape(16.dp),
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
