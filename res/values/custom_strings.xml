@@ -650,4 +650,8 @@
     <string name="miscellaneous_settings_title">Miscellaneous</string>
     <string name="miscellaneous_settings_summary">Additional system features and options</string>
 
+    <!-- Hide screen capture status -->
+    <string name="hide_screen_capture_status_title">Hide screen capture status</string>
+    <string name="hide_screen_capture_status_summary">Hide screen capture and screen record status from all applications. Can be convenient in some cases but may lead to privacy leaks. Need to restart applications for the change to take effect.</string>
+
 </resources>
