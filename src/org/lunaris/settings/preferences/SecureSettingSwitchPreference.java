@@ -29,7 +29,6 @@ public class SecureSettingSwitchPreference extends SwitchPreferenceCompat {
         setPreferenceDataStore(new SecureSettingsStore(context.getContentResolver()));
     }
 
-    @Override
     protected boolean isPersisted() {
         return Settings.Secure.getStringForUser(getContext().getContentResolver(), getKey(), UserHandle.USER_CURRENT) != null;
     }
