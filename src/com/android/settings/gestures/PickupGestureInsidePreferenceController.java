@@ -128,7 +128,13 @@ public class PickupGestureInsidePreferenceController extends AbstractPreferenceC
     }
 
     private void updateRadioEnablement(boolean enabled) {
-        if (mLockscreenPref != null) mLockscreenPref.setEnabled(enabled);
-        if (mAmbientPref != null) mAmbientPref.setEnabled(enabled);
+        if (mLockscreenPref != null) {
+            mLockscreenPref.setVisible(enabled);
+            mLockscreenPref.setEnabled(enabled);
+        }
+        if (mAmbientPref != null) {
+            mAmbientPref.setVisible(enabled);
+            mAmbientPref.setEnabled(enabled);
+        }
     }
 }
