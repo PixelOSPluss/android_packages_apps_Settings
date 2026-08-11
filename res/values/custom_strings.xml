@@ -666,4 +666,8 @@
     <string name="quick_launch_tab_apps">Apps</string>
     <string name="quick_launch_drag_hint">Hold and drag to arrange</string>
 
+    <!-- Ambient Display Pickup options -->
+    <string name="ambient_display_pickup_lockscreen_title">Wake device on pick up</string>
+    <string name="ambient_display_pickup_lockscreen_summary">Wake the lock screen when you lift the phone</string>
+
 </resources>
