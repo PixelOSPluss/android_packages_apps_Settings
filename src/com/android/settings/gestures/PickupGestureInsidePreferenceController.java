@@ -28,19 +28,20 @@ import com.android.settings.R;
 import com.android.settings.core.PreferenceControllerMixin;
 import com.android.settingslib.core.AbstractPreferenceController;
 import com.android.settingslib.widget.MainSwitchPreference;
-
-import com.android.settings.custom.preference.SecureSettingSwitchPreference;
+import com.android.settingslib.widget.SelectorWithWidgetPreference;
 
 public class PickupGestureInsidePreferenceController extends AbstractPreferenceController
-        implements PreferenceControllerMixin, OnCheckedChangeListener {
+        implements PreferenceControllerMixin, OnCheckedChangeListener, SelectorWithWidgetPreference.OnClickListener {
 
     private static final String KEY = "gesture_pick_up";
-    private static final String AMBIENT_KEY = "doze_pick_up_gesture_ambient";
+    private static final String KEY_LOCKSCREEN = "doze_pick_up_gesture_lockscreen";
+    private static final String KEY_AMBIENT = "doze_pick_up_gesture_ambient";
 
     private final boolean mDefault;
     private final Context mContext;
     private MainSwitchPreference mSwitch;
-    private SecureSettingSwitchPreference mAmbientPref;
+    private SelectorWithWidgetPreference mLockscreenPref;
+    private SelectorWithWidgetPreference mAmbientPref;
 
     public PickupGestureInsidePreferenceController(Context context) {
         super(context);
@@ -57,18 +58,29 @@ public class PickupGestureInsidePreferenceController extends AbstractPreferenceC
     @Override
     public void displayPreference(PreferenceScreen screen) {
         super.displayPreference(screen);
-        mAmbientPref = screen.findPreference(AMBIENT_KEY);
+        mLockscreenPref = screen.findPreference(KEY_LOCKSCREEN);
+        mAmbientPref = screen.findPreference(KEY_AMBIENT);
+
+        if (mLockscreenPref != null) {
+            mLockscreenPref.setOnClickListener(this);
+        }
+        if (mAmbientPref != null) {
+            mAmbientPref.setOnClickListener(this);
+        }
+
         mSwitch = screen.findPreference(getPreferenceKey());
-        mSwitch.setOnPreferenceClickListener(preference -> {
-            final boolean enabled = Settings.Secure.getInt(mContext.getContentResolver(),
-                    Settings.Secure.DOZE_PICK_UP_GESTURE, mDefault ? 1 : 0) == 1;
-            Settings.Secure.putInt(mContext.getContentResolver(),
-                    Settings.Secure.DOZE_PICK_UP_GESTURE,
-                    enabled ? 0 : 1);
-            updateAmbientEnablement(!enabled);
-            return true;
-        });
-        mSwitch.addOnSwitchChangeListener(this);
+        if (mSwitch != null) {
+            mSwitch.setOnPreferenceClickListener(preference -> {
+                final boolean enabled = Settings.Secure.getInt(mContext.getContentResolver(),
+                        Settings.Secure.DOZE_PICK_UP_GESTURE, mDefault ? 1 : 0) == 1;
+                Settings.Secure.putInt(mContext.getContentResolver(),
+                        Settings.Secure.DOZE_PICK_UP_GESTURE,
+                        enabled ? 0 : 1);
+                updateRadioEnablement(!enabled);
+                return true;
+            });
+            mSwitch.addOnSwitchChangeListener(this);
+        }
         updateState(mSwitch);
     }
 
@@ -76,7 +88,7 @@ public class PickupGestureInsidePreferenceController extends AbstractPreferenceC
         if (mSwitch != null) {
             mSwitch.setChecked(isChecked);
         }
-        updateAmbientEnablement(isChecked);
+        updateRadioEnablement(isChecked);
     }
 
     @Override
@@ -84,6 +96,11 @@ public class PickupGestureInsidePreferenceController extends AbstractPreferenceC
         final boolean enabled = Settings.Secure.getInt(mContext.getContentResolver(),
                 Settings.Secure.DOZE_PICK_UP_GESTURE, mDefault ? 1 : 0) == 1;
         setChecked(enabled);
+
+        final boolean isAmbient = Settings.Secure.getInt(mContext.getContentResolver(),
+                "doze_pick_up_gesture_ambient", 0) == 1;
+        if (mLockscreenPref != null) mLockscreenPref.setChecked(!isAmbient);
+        if (mAmbientPref != null) mAmbientPref.setChecked(isAmbient);
     }
 
     @Override
@@ -95,11 +112,23 @@ public class PickupGestureInsidePreferenceController extends AbstractPreferenceC
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
         Settings.Secure.putInt(mContext.getContentResolver(),
                 Settings.Secure.DOZE_PICK_UP_GESTURE, isChecked ? 1 : 0);
-        updateAmbientEnablement(isChecked);
+        updateRadioEnablement(isChecked);
     }
 
-    private void updateAmbientEnablement(boolean enabled) {
-        if (mAmbientPref == null) return;
-        mAmbientPref.setEnabled(enabled);
+    @Override
+    public void onRadioButtonClicked(SelectorWithWidgetPreference selectedPreference) {
+        String key = selectedPreference.getKey();
+        boolean isAmbient = KEY_AMBIENT.equals(key);
+
+        Settings.Secure.putInt(mContext.getContentResolver(),
+                "doze_pick_up_gesture_ambient", isAmbient ? 1 : 0);
+
+        if (mLockscreenPref != null) mLockscreenPref.setChecked(!isAmbient);
+        if (mAmbientPref != null) mAmbientPref.setChecked(isAmbient);
+    }
+
+    private void updateRadioEnablement(boolean enabled) {
+        if (mLockscreenPref != null) mLockscreenPref.setEnabled(enabled);
+        if (mAmbientPref != null) mAmbientPref.setEnabled(enabled);
     }
 }
