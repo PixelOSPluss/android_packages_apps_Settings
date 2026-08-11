@@ -147,11 +147,11 @@
             android:summary="@string/doze_enabled_summary"
             settings:controller="com.android.settings.display.AmbientDisplayNotificationsPreferenceController" />
 
-        <com.android.settings.custom.preference.SecureSettingSwitchPreference
+        <SwitchPreferenceCompat
             android:key="doze_for_notifications"
             android:title="@string/doze_title"
             android:summary="@string/doze_summary"
-            android:defaultValue="true" />
+            settings:controller="com.android.settings.custom.preference.SecureSettingSwitchPreference" />
 
         <com.android.settingslib.RestrictedSwitchPreference
             android:key="doze_on_charge"
