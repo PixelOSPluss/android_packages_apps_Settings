@@ -20,6 +20,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.BatteryManager;
 
+import com.android.internal.os.PowerProfile;
+
 import com.android.settings.R;
 import com.android.settings.core.BasePreferenceController;
 import com.android.settingslib.fuelgauge.BatteryUtils;
@@ -35,17 +37,38 @@ public class BatteryDesignCapacityPreferenceController extends BasePreferenceCon
 
     @Override
     public int getAvailabilityStatus() {
-        return AVAILABLE;
+        if (BatteryInfoUtils.isNodeValid(mContext, R.string.config_battery_design_capacity_node)) {
+            return AVAILABLE;
+        }
+        boolean isFeatureEnabled = mContext.getResources().getBoolean(R.bool.config_show_battery_design_capacity);
+        return isFeatureEnabled ? AVAILABLE : UNSUPPORTED_ON_DEVICE;
     }
 
     @Override
     public CharSequence getSummary() {
-        Intent batteryIntent = BatteryUtils.getBatteryIntent(mContext);
-        final int designCapacityUah =
-                batteryIntent.getIntExtra(BatteryManager.EXTRA_DESIGN_CAPACITY, -1);
+        int designCapacityUah = BatteryInfoUtils.readIntNode(
+                mContext, R.string.config_battery_design_capacity_node, -1);
+        if (designCapacityUah <= 0) {
+            boolean usePowerProfileFirst = mContext.getResources().getBoolean(R.bool.config_use_power_profile_for_battery_capacity);
+            if (usePowerProfileFirst) {
+                final PowerProfile profile = new PowerProfile(mContext);
+                designCapacityUah = (int) profile.getBatteryCapacity() * 1000;
+                if (designCapacityUah <= 0) {
+                    Intent batteryIntent = BatteryUtils.getBatteryIntent(mContext);
+                    designCapacityUah = batteryIntent.getIntExtra(BatteryManager.EXTRA_DESIGN_CAPACITY, -1);
+                }
+            } else {
+                Intent batteryIntent = BatteryUtils.getBatteryIntent(mContext);
+                designCapacityUah = batteryIntent.getIntExtra(BatteryManager.EXTRA_DESIGN_CAPACITY, -1);
+                if (designCapacityUah <= 0) {
+                    final PowerProfile profile = new PowerProfile(mContext);
+                    designCapacityUah = (int) profile.getBatteryCapacity() * 1000;
+                }
+            }
+        }
 
         if (designCapacityUah > 0) {
-            int designCapacity = designCapacityUah / 1_000;
+            int designCapacity = designCapacityUah > 100_000 ? designCapacityUah / 1_000 : designCapacityUah;
             return mContext.getString(R.string.battery_design_capacity_summary, designCapacity);
         }
 

@@ -22,4 +22,24 @@
 
     <!-- Whether to show the search box in the Setup Wizard locale picker. -->
     <bool name="config_show_setuplocalepicker_region_searchbox">true</bool>
+
+    <!-- Show battery Design Capacity -->
+    <bool name="config_show_battery_design_capacity">true</bool>
+
+    <!-- Show battery Maximum Capacity -->
+    <bool name="config_show_battery_maximum_capacity">true</bool>
+
+    <!-- Whether to use PowerProfile as the primary source for battery design capacity -->
+    <bool name="config_use_power_profile_for_battery_capacity">false</bool>
+
+    <!-- Custom sysfs node paths for battery info. Empty by default (falls back to BatteryManager intent) -->
+    <string name="config_battery_cycle_count_node" translatable="false"></string>
+    <string name="config_battery_maximum_capacity_node" translatable="false"></string>
+    <string name="config_battery_design_capacity_node" translatable="false"></string>
+    <string name="config_battery_voltage_node" translatable="false"></string>
+    <string name="config_battery_temperature_node" translatable="false"></string>
+    <string name="config_battery_health_node" translatable="false"></string>
+    <string name="config_battery_technology_node" translatable="false"></string>
+    <string name="config_battery_manufacture_date_node" translatable="false"></string>
+    <string name="config_battery_first_use_date_node" translatable="false"></string>
 </resources>
