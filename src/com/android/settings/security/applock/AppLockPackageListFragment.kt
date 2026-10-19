@@ -142,7 +142,7 @@ class AppLockPackageListFragment : DashboardFragment() {
         }
     }
 
-    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.CLOVER
+    override fun getMetricsCategory(): Int = MetricsProto.MetricsEvent.VIEW_UNKNOWN
 
     override protected fun getPreferenceScreenResId() = R.xml.app_lock_package_list_settings
 
