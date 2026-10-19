@@ -447,4 +447,7 @@
     <string name="custom_timeout_summary_10mins">10 minutes</string>
     <string name="custom_timeout_summary_30mins">30 minutes</string>
 
+    <!-- Hide screen capture status -->
+    <string name="hide_screen_capture_status_title">Hide screen capture status</string>
+    <string name="hide_screen_capture_status_summary">Hide screen capture and screen record status from all applications. Can be convenient in some cases but may lead to privacy leaks. Need to restart applications for the change to take effect.</string>
 </resources>
