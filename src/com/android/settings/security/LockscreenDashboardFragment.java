@@ -185,7 +185,7 @@ public class LockscreenDashboardFragment extends DashboardFragment
                     controllers.add(new LockScreenNotificationPreferenceController(context));
                     controllers.add(new OwnerInfoPreferenceController(
                             context, null /* fragment */));
-                    controllers.add(new DozeOnChargePreferenceController(context, null /* lifecycle */));
+                    controllers.add(new DozeOnChargePreferenceController(context, (Lifecycle) null));
                     return controllers;
                 }
 
