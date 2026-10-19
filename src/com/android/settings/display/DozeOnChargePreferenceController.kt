@@ -41,7 +41,9 @@ class DozeOnChargePreferenceController(
 ) : TogglePreferenceController(context, KEY),
     LifecycleEventObserver {
 
-    constructor(context: Context, key: String) : this(context, null)
+    constructor(context: Context) : this(context, null as Lifecycle?)
+
+    constructor(context: Context, key: String) : this(context, null as Lifecycle?)
 
     private var config: AmbientDisplayConfiguration = AmbientDisplayConfiguration(context)
     private var preference: Preference? = null
