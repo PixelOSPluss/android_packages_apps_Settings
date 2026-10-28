@@ -86,4 +86,14 @@ public class VibrationIntensitySettingsFragmentTest {
                 .thenReturn(2);
         assertThat(VibrationIntensitySettingsFragment.isPageSearchEnabled(mContext)).isTrue();
     }
+
+    @Test
+    public void isPageSearchEnabled_percentEnabledMultipleLevels_returnsFalse() {
+        when(mResources.getInteger(R.integer.config_vibration_supported_intensity_levels))
+                .thenReturn(2);
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_vibrationIntensityPercentEnabled))
+                .thenReturn(true);
+        assertThat(VibrationIntensitySettingsFragment.isPageSearchEnabled(mContext)).isFalse();
+    }
 }

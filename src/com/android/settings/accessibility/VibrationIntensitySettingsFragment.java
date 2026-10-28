@@ -65,8 +65,10 @@ public class VibrationIntensitySettingsFragment extends DashboardFragment {
     static boolean isPageSearchEnabled(Context context) {
         final int supportedIntensityLevels = context.getResources().getInteger(
                 R.integer.config_vibration_supported_intensity_levels);
+        final boolean percentEnabled = context.getResources().getBoolean(
+                com.android.internal.R.bool.config_vibrationIntensityPercentEnabled);
         final boolean hasVibrator = context.getSystemService(Vibrator.class).hasVibrator();
-        return hasVibrator && supportedIntensityLevels > 1;
+        return hasVibrator && supportedIntensityLevels > 1 && !percentEnabled;
     }
 
     @Override
