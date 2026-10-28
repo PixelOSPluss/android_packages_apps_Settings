@@ -104,6 +104,20 @@ class VibrationScreenTest {
     }
 
     @Test
+    fun isAvailable_hasVibratorMultipleIntensityLevelsAndPercentEnabled_available() {
+        vibratorMock = mock { on { hasVibrator() } doReturn true }
+        resourcesSpy.stub {
+            on { getInteger(R.integer.config_vibration_supported_intensity_levels) } doReturn 3
+            on {
+                getBoolean(
+                    com.android.internal.R.bool.config_vibrationIntensityPercentEnabled
+                )
+            } doReturn true
+        }
+        assertThat(preferenceScreenCreator.isAvailable(context)).isTrue()
+    }
+
+    @Test
     fun mainSwitchClick_withIntensitiesSet_disablesAndUnchecksAllIntensitiesAndPreservesStorage() {
         val intensityKeys = findVibrationIntensitySwitchPreferences()
         assertThat(intensityKeys).isNotEmpty()

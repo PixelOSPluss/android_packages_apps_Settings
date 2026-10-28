@@ -90,6 +90,20 @@ class VibrationIntensityScreenTest {
         assertThat(preferenceScreenCreator.isAvailable(context)).isTrue()
     }
 
+    @Test
+    fun isAvailable_hasVibratorMultipleIntensityLevelsAndPercentEnabled_unavailable() {
+        vibratorMock = mock { on { hasVibrator() } doReturn true }
+        resourcesSpy.stub {
+            on { getInteger(config_vibration_supported_intensity_levels) } doReturn 3
+            on {
+                getBoolean(
+                    com.android.internal.R.bool.config_vibrationIntensityPercentEnabled
+                )
+            } doReturn true
+        }
+        assertThat(preferenceScreenCreator.isAvailable(context)).isFalse()
+    }
+
     private fun setRingerMode(ringerMode: Int) {
         val audioManager = context.getSystemService<AudioManager>()
         audioManager?.ringerModeInternal = ringerMode

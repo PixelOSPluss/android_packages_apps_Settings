@@ -67,8 +67,11 @@ public class VibrationPreferenceController extends BasePreferenceController {
     @Override
     public boolean handlePreferenceTreeClick(Preference preference) {
         if (TextUtils.equals(preference.getKey(), getPreferenceKey())) {
-            if (mContext.getResources().getInteger(
-                    R.integer.config_vibration_supported_intensity_levels) > 1) {
+            final boolean percentEnabled = mContext.getResources().getBoolean(
+                    com.android.internal.R.bool.config_vibrationIntensityPercentEnabled);
+            final boolean hasMultipleLevels = mContext.getResources().getInteger(
+                    R.integer.config_vibration_supported_intensity_levels) > 1;
+            if (hasMultipleLevels && !percentEnabled) {
                 launchVibrationSettingsFragment(VibrationIntensitySettingsFragment.class);
             } else {
                 launchVibrationSettingsFragment(VibrationSettings.class);

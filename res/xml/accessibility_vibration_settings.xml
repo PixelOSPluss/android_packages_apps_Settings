@@ -25,6 +25,12 @@
         app:keywords="@string/keywords_accessibility_vibration_primary_switch"
         app:controller="com.android.settings.accessibility.VibrationMainSwitchPreferenceController"/>
 
+    <com.android.settingslib.widget.SliderPreference
+        android:key="vibration_intensity_percent"
+        android:title="@string/vibration_intensity_percent_title"
+        app:keywords="@string/keywords_vibration_intensity_percent"
+        app:controller="com.android.settings.accessibility.VibrationIntensityPercentPreferenceController" />
+
     <PreferenceCategory
         android:key="toggle_vibration_category_call"
         android:title="@string/accessibility_call_vibration_category_title"

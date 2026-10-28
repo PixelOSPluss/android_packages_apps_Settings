@@ -148,6 +148,21 @@ public class VibrationPreferenceControllerTest {
                 eq(VibrationIntensitySettingsFragment.class));
     }
 
+    @Test
+    public void handlePreferenceTreeClick_percentEnabled_opensVibrationSettings() {
+        when(mResources.getInteger(R.integer.config_vibration_supported_intensity_levels))
+                .thenReturn(3);
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_vibrationIntensityPercentEnabled))
+                .thenReturn(true);
+        VibrationPreferenceController controller = spy(createPreferenceController());
+
+        doNothing().when(controller).launchVibrationSettingsFragment(any());
+        controller.handlePreferenceTreeClick(mPreference);
+
+        verify(controller).launchVibrationSettingsFragment(eq(VibrationSettings.class));
+    }
+
     private VibrationPreferenceController createPreferenceController() {
         VibrationPreferenceController controller =
                 new VibrationPreferenceController(mContext, PREFERENCE_KEY);

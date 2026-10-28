@@ -18,6 +18,7 @@ package com.android.settings.accessibility
 import android.app.settings.SettingsEnums
 import android.content.Context
 import android.os.Vibrator
+import android.provider.Settings.System.VIBRATION_INTENSITY_PERCENT
 import androidx.fragment.app.Fragment
 import com.android.settings.R
 import com.android.settings.Settings.VibrationSettingsActivity
@@ -53,12 +54,15 @@ open class VibrationScreen : PreferenceScreenMixin, PreferenceAvailabilityProvid
     override fun getMetricsCategory() = SettingsEnums.ACCESSIBILITY_VIBRATION
 
     override val availabilityDescription =
-        "The device must have a vibrator and support only one vibration intensity level."
+        "The device must have a vibrator and support only one vibration intensity level, " +
+            "or use a global vibration strength percentage."
 
     override fun getAvailabilityStability() = PreconditionStability.STABLE_UNTIL_APK_UPDATE
 
     override fun isAvailable(context: Context) =
-        context.hasVibrator && context.getSupportedVibrationIntensityLevels() == 1
+        context.hasVibrator &&
+            (context.getSupportedVibrationIntensityLevels() == 1 ||
+                context.isVibrationIntensityPercentEnabled())
 
     override val highlightMenuKey
         get() = R.string.menu_key_accessibility
@@ -70,6 +74,13 @@ open class VibrationScreen : PreferenceScreenMixin, PreferenceAvailabilityProvid
     override fun getPreferenceHierarchy(context: Context, coroutineScope: CoroutineScope) =
         preferenceHierarchy(context) {
             +VibrationMainSwitchPreference(MAIN_SWITCH_KEY, R.string.toggle_vibrate_on_purpose)
+            if (context.isVibrationIntensityPercentEnabled()) {
+                +VibrationIntensityPercentSliderPreference(
+                    context,
+                    VIBRATION_INTENSITY_PERCENT,
+                    MAIN_SWITCH_KEY,
+                )
+            }
             +CallVibrationPreferenceCategory("toggle_vibration_category_call") += {
                 +RingVibrationIntensitySwitchPreference(
                     context,

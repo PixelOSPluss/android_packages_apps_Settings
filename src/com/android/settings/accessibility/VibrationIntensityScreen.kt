@@ -59,12 +59,15 @@ open class VibrationIntensityScreen : PreferenceScreenMixin, PreferenceAvailabil
     override fun getMetricsCategory() = SettingsEnums.ACCESSIBILITY_VIBRATION
 
     override val availabilityDescription =
-        "The device must have a vibrator and support at least two vibration intensity levels."
+        "The device must have a vibrator, support at least two vibration intensity levels, " +
+            "and not use a global vibration strength percentage."
 
     override fun getAvailabilityStability() = PreconditionStability.STABLE_UNTIL_APK_UPDATE
 
     override fun isAvailable(context: Context) =
-        context.hasVibrator && context.getSupportedVibrationIntensityLevels() > 1
+        context.hasVibrator &&
+            context.getSupportedVibrationIntensityLevels() > 1 &&
+            !context.isVibrationIntensityPercentEnabled()
 
     override val highlightMenuKey
         get() = R.string.menu_key_accessibility

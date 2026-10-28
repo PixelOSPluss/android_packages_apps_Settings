@@ -6305,6 +6305,16 @@
     <string name="accessibility_vibration_settings_state_off">Off / Control vibration levels for calls, notifications, and alarms</string>
     <!-- Summary for vibration preference shown when it is disabled because the device is in silent mode. [CHAR LIMIT=NONE] -->
     <string name="accessibility_vibration_setting_disabled_for_silent_mode_summary">Setting disabled because device is set to silent</string>
+    <!-- Title for the slider that controls the strength of all vibrations. [CHAR LIMIT=NONE] -->
+    <string name="vibration_intensity_percent_title">Vibration strength</string>
+    <!-- Description of the slider that controls the strength of all vibrations. [CHAR LIMIT=NONE] -->
+    <string name="vibration_intensity_percent_purpose">Set the strength of all vibrations from 0% to 100%.</string>
+    <!-- Summary of the vibration strength slider, with the selected percentage. [CHAR LIMIT=NONE] -->
+    <string name="vibration_intensity_percent_summary">%1$d%%</string>
+    <!-- Summary of the vibration strength slider when vibrations are off. [CHAR LIMIT=NONE] -->
+    <string name="vibration_intensity_percent_off">Off</string>
+    <!-- Keywords for the vibration strength slider, used for settings search. [CHAR LIMIT=NONE] -->
+    <string name="keywords_vibration_intensity_percent">vibration strength, intensity, amplitude</string>
     <!-- Title for the category of preferences to configure device vibrations related to calls. [CHAR LIMIT=NONE] -->
     <string name="accessibility_call_vibration_category_title">Calls</string>
     <!-- Title for the category of preferences to configure device vibrations related to notifications and alarms. [CHAR LIMIT=NONE] -->
