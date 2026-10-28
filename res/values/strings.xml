@@ -6308,7 +6308,7 @@
     <!-- Title for the slider that controls the strength of all vibrations. [CHAR LIMIT=NONE] -->
     <string name="vibration_intensity_percent_title">Vibration strength</string>
     <!-- Description of the slider that controls the strength of all vibrations. [CHAR LIMIT=NONE] -->
-    <string name="vibration_intensity_percent_purpose">Set the strength of all vibrations from 0% to 100%.</string>
+    <string name="vibration_intensity_percent_purpose" formatted="false">Set the strength of all vibrations from 0% to 100%.</string>
     <!-- Summary of the vibration strength slider, with the selected percentage. [CHAR LIMIT=NONE] -->
     <string name="vibration_intensity_percent_summary">%1$d%%</string>
     <!-- Summary of the vibration strength slider when vibrations are off. [CHAR LIMIT=NONE] -->
