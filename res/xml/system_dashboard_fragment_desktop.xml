@@ -114,6 +114,13 @@
             android:fragment="com.android.settings.users.UserSettings"
             settings:controller="com.android.settings.users.MultiUserPreferenceController"/>
 
+        <Preference
+            android:key="spoofing"
+            android:title="@string/spoofing_settings_title"
+            android:summary="@string/spoofing_settings_summary"
+            android:icon="@drawable/ic_fingerprint"
+            android:fragment="com.android.settings.spoofing.SpoofingDashboardFragment"/>
+
     </PreferenceCategory>
 
     <PreferenceCategory

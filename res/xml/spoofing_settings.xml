@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (C) 2026 The Android Open Source Project
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  -->
+
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="@string/spoofing_settings_title">
+
+    <Preference
+        android:key="spoofing_play_integrity_fix"
+        android:title="@string/play_integrity_fix_title"
+        android:summary="@string/play_integrity_fix_summary"
+        android:icon="@drawable/ic_fingerprint"
+        android:fragment="com.android.settings.spoofing.PlayIntegrityFix"
+        android:order="10" />
+
+    <Preference
+        android:key="spoofing_trickystore"
+        android:title="@string/tricky_store_title"
+        android:summary="@string/tricky_store_summary"
+        android:icon="@drawable/ic_vpn_key"
+        android:fragment="com.android.settings.spoofing.TrickyStore"
+        android:order="20" />
+
+    <Preference
+        android:key="spoofing_game"
+        android:title="@string/game_spoofing_title"
+        android:summary="@string/game_spoofing_summary"
+        android:icon="@drawable/ic_swap_horiz"
+        android:fragment="com.android.settings.spoofing.GameSpoofing"
+        android:order="30" />
+
+</PreferenceScreen>
